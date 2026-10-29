@@ -8,11 +8,10 @@ from core.db import init_db, insert_complaint, insert_suggestion
 from core.ledger import log_event
 from core.safety import flag_safety
 from core.security import attachment_encryption_status
-from core.speech import validate_transcript_submission
-from core.speech_component import speech_input
 from core.suggestions import selected_department
 from core.ui import apply_demo_style, render_hero, require_permission
 from core.geo import staff_area_scope
+from core.sarvam_speech import transcribe_audio
 
 init_db()
 user = require_permission("can_intake")
@@ -24,25 +23,33 @@ apply_demo_style()
 render_hero("Complaint intake", "Complain here", "Capture the original report, inspect suggestions, and save it for a person to review.")
 st.warning(SIM_LABEL)
 
+# Sarvam AI Voice Intake Section
 if feature_enabled("voice"):
-    speech_enabled = st.checkbox("I understand browser speech recognition may send audio to its provider; NagrikSetu does not store audio.")
-    speech = speech_input(enabled=speech_enabled, key="nyayaflow_speech", default=None)
-    if speech and speech.get("id") != st.session_state.get("last_speech_id"):
-        st.session_state["intake_text"] = speech.get("transcript", "")
-        st.session_state["last_speech_id"] = speech["id"]
-        st.session_state["speech_transcript_pending"] = bool(speech.get("transcript"))
-        st.session_state["confirm_speech_transcript"] = False
-        st.session_state["speech_language"] = speech.get("language", "en-IN")
+    st.markdown("### 🎙️ Voice Intake (Powered by Sarvam AI)")
+    st.caption("Record your grievance in Hindi, English, or Hinglish. Sarvam AI will transcribe it accurately.")
+    
+    audio_value = st.audio_input("Record your complaint voice note", key="sarvam_audio_recorder")
+    
+    if audio_value is not None:
+        audio_bytes = audio_value.getvalue()
+        if audio_bytes != st.session_state.get("last_audio_bytes"):
+            with st.spinner("Transcribing audio via Sarvam AI..."):
+                try:
+                    transcript = transcribe_audio(audio_bytes, audio_value.name)
+                    if transcript:
+                        st.session_state["intake_text"] = transcript
+                        st.session_state["last_audio_bytes"] = audio_bytes
+                        st.success("Audio transcribed successfully! You can review or edit the text below.")
+                        st.rerun()
+                except Exception as exc:
+                    st.error(str(exc))
 else:
-    st.caption("Voice intake is disabled; enter the complaint below.")
+    st.caption("Voice intake is disabled by configuration.")
+
 text = st.text_area("Complaint (Hindi / English / Hinglish) · edit the transcript before processing", height=120,
                     max_chars=intake.MAX_COMPLAINT_CHARS,
                     key="intake_text")
-speech_used = bool(st.session_state.get("speech_transcript_pending"))
-transcript_confirmed = st.checkbox("I reviewed and confirm this transcript", key="confirm_speech_transcript") if speech_used else False
-if speech_used:
-    st.caption(f"Speech trial transcript · browser language {st.session_state.get('speech_language', 'unknown')} · "
-               "Hindi-English mixed speech quality is unvalidated.")
+
 channel = st.selectbox("Channel", ["portal", "phone", "social", "in-person"])
 loc_hint = st.text_input("Street or landmark (optional, staff-assisted)")
 if assigned_areas:
@@ -53,11 +60,13 @@ if assigned_areas:
 else:
     selected_area = None
     st.warning("No verified area is assigned. Staff-assisted intake stays unavailable until access is approved.")
+
 if st.button("Process complaint", type="primary"):
     try:
         if not assigned_areas:
             raise ValueError("Select a service area before using staff-assisted intake.")
-        text = validate_transcript_submission(text, speech_used, transcript_confirmed)
+        if not text or not text.strip():
+            raise ValueError("Complaint text cannot be empty.")
         rec = intake.process(text, channel, loc_hint)
         area = area_by_key[selected_area]
         rec.update({key: area[key] for key in ("state_code", "state_name", "city_code", "city_name",
@@ -67,7 +76,6 @@ if st.button("Process complaint", type="primary"):
         st.session_state["split"] = splitter.propose_split(text)
         st.session_state["route"] = router_baseline.route(text)
         st.session_state["safety"] = flag_safety(text)
-        st.session_state["speech_transcript_pending"] = False
     except ValueError as exc:
         st.error(str(exc))
 
@@ -107,6 +115,7 @@ if "rec" in st.session_state:
         confirm_split = st.checkbox("I reviewed and confirm these proposed sub-issues")
     elif sp["is_compound"]:
         st.caption("A reviewer must confirm the proposed split. The complaint will be saved intact for now.")
+    
     photos_enabled = feature_enabled("photos")
     photo_status = attachment_encryption_status()
     if not photos_enabled:

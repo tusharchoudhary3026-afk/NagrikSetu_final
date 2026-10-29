@@ -16,7 +16,7 @@ from core.ui import apply_demo_style, render_hero
 from core.geo import known_area_for_location, partial_geography_names
 from core.geo_ui import render_geography_picker
 from core.speech import validate_transcript_submission
-from core.speech_component import speech_input
+from core.sarvam_speech import transcribe_audio
 
 init_db()
 user = require_role("public")
@@ -29,28 +29,33 @@ with tab_submit:
     st.caption("Share only details needed to understand the issue. Do not include passwords, financial information, or highly sensitive personal data.")
     state_code, city_code, area_code = render_geography_picker("resident-complaint", allow_unknown=True)
     st.caption("Location options are prototype coverage and may not include every ward. Choose ‘Not sure’ if unknown.")
+    
     voice_enabled = feature_enabled("voice")
-    speech_used = False
-    transcript_confirmed = False
     if voice_enabled:
-        st.caption("Type your complaint or describe it by voice. Please check names, locations and numbers.")
-        consent = st.checkbox("I understand browser speech recognition may send audio to its provider; NagrikSetu does not store audio.",
-                              key="public-speech-consent")
-        speech = speech_input(enabled=consent, key="public-complaint-speech", default=None)
-        if speech and speech.get("id") != st.session_state.get("public_last_speech_id"):
-            transcript = speech.get("transcript", "")
-            if transcript:
-                st.session_state["public_complaint_text"] = transcript
-                st.session_state["public_speech_transcript_pending"] = True
-                st.session_state["public_last_speech_id"] = speech.get("id")
-        speech_used = bool(st.session_state.get("public_speech_transcript_pending"))
+        st.markdown("### 🎙️ Voice Intake (Powered by Sarvam AI)")
+        st.caption("Record your complaint voice note in Hindi, English, or Hinglish.")
+        
+        audio_value = st.audio_input("Record your complaint voice note", key="public_sarvam_audio_recorder")
+        
+        if audio_value is not None:
+            audio_bytes = audio_value.getvalue()
+            if audio_bytes != st.session_state.get("public_last_audio_bytes"):
+                with st.spinner("Transcribing audio via Sarvam AI..."):
+                    try:
+                        transcript = transcribe_audio(audio_bytes, audio_value.name)
+                        if transcript:
+                            st.session_state["public_complaint_text"] = transcript
+                            st.session_state["public_last_audio_bytes"] = audio_bytes
+                            st.success("Audio transcribed successfully! You can review or edit the text below.")
+                            st.rerun()
+                    except Exception as exc:
+                        st.error(str(exc))
+
     with st.form("public_complaint"):
-        text = st.text_area("Review transcript" if speech_used else "What is the problem?", height=140,
+        text = st.text_area("What is the problem?", height=140,
                             max_chars=intake.MAX_COMPLAINT_CHARS,
                             placeholder="For example: A streetlight is not working near the community center.",
                             key="public_complaint_text")
-        if speech_used:
-            transcript_confirmed = st.checkbox("I reviewed and confirm this transcript", key="public-speech-confirmed")
         location = st.text_input("Street or nearby landmark (optional)", placeholder="Street, building, or nearby landmark")
         photos_enabled = feature_enabled("photos")
         attachments = st.file_uploader("Add up to 3 photos (optional)", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=True,
@@ -62,9 +67,10 @@ with tab_submit:
         if not photos_enabled:
             st.info("Photo evidence is disabled by configuration.")
         submitted = st.form_submit_button("Review and submit", type="primary", width="stretch")
+        
     if submitted:
         try:
-            text = validate_transcript_submission(text, speech_used, transcript_confirmed)
+            text = validate_transcript_submission(text, False, True)
             if attachments and not encryption["configured"]:
                 raise ValueError("Photo upload is unavailable until secure storage is configured. Remove the photos and submit the text, or try later.")
             validate_attachments(attachments)
@@ -89,8 +95,6 @@ with tab_submit:
                 try:
                     save_attachments(complaint_id, attachments, user["role"], actor_user=user)
                 except Exception:
-                    # The complaint itself is committed. Do not tell the resident it
-                    # failed (and invite duplicate submissions) when only a photo failed.
                     logging.getLogger(__name__).exception(
                         "Photo storage failed after complaint %s was committed", rec["case_id"])
                     attachment_warning = "The complaint was saved, but one or more photos could not be attached."
@@ -103,7 +107,6 @@ with tab_submit:
                                                            "area": rec.get("area_name"),
                                                            "attachment_warning": attachment_warning,
                                                            "complaint_id": complaint_id}
-            st.session_state["public_speech_transcript_pending"] = False
             st.rerun()
         except ValueError as exc:
             st.error(str(exc))
