@@ -1,24 +1,11 @@
-# Geographic complaint access
+# Geographic complaint visibility
 
-## How access is granted
+Signed-in staff select State → City/district → Area from the Overview page. The selection is active immediately and persists in `staff_selected_areas`; no geography-administrator request or approval is needed. Multiple areas can be selected for the same account. Refreshing the staff page reloads those scopes.
 
-1. A resident or staff member authenticates using the existing sign-in flow.
-2. A staff user selects State → City/district → Area on the overview page and clicks **Show complaints for this area**. The selected area is available immediately; no administrator approval is required.
-3. Each new selection appends an active area event to `government_area_events`, recording the staff identity, selected location, timestamp, and that it was self-selected. Selecting an already active area does not add a duplicate row.
-4. A staff member can select additional areas from the overview page. A configured geography administrator can still revoke an assignment; revocation is recorded as a new append-only event. The administrator flow remains available for legacy pending requests.
+Server-side complaint reads and review actions continue to validate the authenticated active staff identity, role, and selected service-area scope. Operator complaint lists and actions remain restricted to the assigned department; reviewers can see cases in selected areas and auditors remain read-only. Public users still see only their own complaints. Selecting a location grants access to complaints whose structured state/city/area matches that selection; it does not grant access to unassigned complaints.
 
-Set `NYAYAFLOW_GEO_ADMIN_EMAILS` to a comma-separated list of approved administrator emails in the trusted deployment environment. Do not commit real staff emails to the repository. `data/geo_admin_allowlist.csv` is a local prototype option and must be protected in deployments.
+Existing administrator approvals and old pending requests in `government_area_events` remain as historical records. They do not block a staff member from selecting that same location in the Overview. The old area-request administration page is no longer in staff navigation.
 
-The demo staff emails are synthetic identities, not employment verification. Verification codes are simulated in demo mode. Replace the sample administrator configuration with an authorized, protected deployment configuration before using real accounts.
+The optional synthetic city-wide Gwalior assignment remains available only when `NAGRIKSETU_DEMO_MODE=1` and `NYAYAFLOW_SEED_DEMO_STAFF=1`, for the exact demo operator01, reviewer01, and auditor01 accounts. It is not required for ordinary staff to select a location.
 
-## Complaint handling
-
-The resident portal offers cascading geography selectors. Residents may leave a lower level unknown; the system preserves only the known levels and marks the service area missing. Such cases remain in the restricted geography-admin queue until triaged; staff must select a known area to see area-matched complaints.
-
-The selected state/city/area is checked server-side and persisted as an append-only access event. Inbox, review, challenges, duplicate matching/decisions, attachments, replay, analytics, and audit exports enforce or query this scope. Staff still need an active staff identity; operators remain department-filtered, and auditors remain read-only. Residents continue to query complaints by their authenticated account ID.
-
-Area options live in `data/geo_coverage.json`. They are sample prototype geography covering Madhya Pradesh, Uttar Pradesh, Maharashtra, and Punjab, including Gwalior areas Morar and Gole Ka Mandir. They are not an authoritative ward-boundary or municipal jurisdiction dataset; verify and replace them with approved city data before operational deployment.
-
-## Legacy records and limits
-
-The schema migration adds structured location columns but does not infer geography for existing complaints. Complaints without structured area fields remain unassigned and are hidden from ordinary area-scoped staff until reviewed by a geography administrator. Existing user role data is preserved. Authentication and access checks are prototype-grade; protect deployment secrets, use a production identity provider, and review the data protection model before real resident data is stored.
+Area choices are in `data/geo_coverage.json`; they are simulated sample geography for Madhya Pradesh, Uttar Pradesh, Maharashtra, and Punjab, not authoritative ward boundaries. Complaints with missing state/city/area remain restricted to geography administration and are not included when staff select a known location. Review and replace the sample geography and access policy before any operational deployment.

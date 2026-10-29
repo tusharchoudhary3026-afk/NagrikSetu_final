@@ -11,7 +11,9 @@ button.primary{background:#087f78;color:#fff;border:0}.hint{color:#62748b;margin
 const statusEl=document.getElementById('status'), start=document.getElementById('start'), stop=document.getElementById('stop'), lang=document.getElementById('lang'), timerEl=document.getElementById('timer');
 let args={}; let recognition=null; let current=''; let startedAt=0; let timerHandle=null;
 function send(type,value){window.parent.postMessage({isStreamlitMessage:true,type,value},'*')}
-function ready(){send('streamlit:componentReady',{apiVersion:1})}
+// ComponentReady reads apiVersion from the top-level message. Keeping it under
+// `value` makes Streamlit receive `undefined` and reject the whole component.
+function ready(){window.parent.postMessage({isStreamlitMessage:true,type:'streamlit:componentReady',apiVersion:1},'*')}
 function render(e){args=e.data.args||{}; if(args.language)lang.value=args.language; if(!args.enabled){start.disabled=true;statusEl.textContent='Enable the consent checkbox in the app before using the microphone.'}else start.disabled=false;}
 window.addEventListener('message',e=>{if(e.data?.type==='streamlit:render')render(e)});
 function updateTimer(){const seconds=Math.floor((Date.now()-startedAt)/1000);timerEl.textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')}

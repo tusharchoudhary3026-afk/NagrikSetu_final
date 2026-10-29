@@ -94,9 +94,9 @@ def test_AT07_compound_split_and_merge_back(db, staff_user):
     assert len(ids) == 2
     with pytest.raises(ValueError):
         splitter.confirm_split(cid, "CASE-T7", sp["parts"], "reviewer", actor_user=reviewer)
-    assert splitter.merge_back(cid, "reviewer", actor_user=reviewer) == 2
+    assert splitter.merge_back(cid, "reviewer", "Reviewed and merged the split back", actor_user=reviewer) == 2
     with pytest.raises(ValueError):
-        splitter.merge_back(cid, "reviewer", actor_user=reviewer)
+        splitter.merge_back(cid, "reviewer", "Reviewed and merged the split back", actor_user=reviewer)
     assert len(fetch_all("SELECT id FROM complaints WHERE parent_id=?", (cid,))) == 2  # never deleted
 
 

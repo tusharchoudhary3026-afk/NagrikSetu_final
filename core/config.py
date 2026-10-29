@@ -22,7 +22,16 @@ GOV_ALLOWLIST = ROOT / "data" / "gov_allowlist.csv"
 
 REASON_CODES = ["wrong_category", "missing_info", "overlapping_ownership", "duplicate_report", "other"]
 REVIEW_ACTIONS = ["accept", "edit", "clarify", "escalate", "transfer"]
-REASON_REQUIRED = {"edit", "escalate", "transfer", "duplicate_linked", "duplicate_unlinked"}
+REASON_REQUIRED = {"edit", "escalate", "transfer", "duplicate_linked", "duplicate_unlinked",
+                   "duplicate_confirmed", "duplicate_rejected",
+                   "extraction_corrected", "split_edited", "split_merged_back"}
+
+# Duplicate ranking placeholders. These are review signals, never decision thresholds.
+DUP_TEXT_WEIGHT = 0.60
+DUP_ISSUE_WEIGHT = 0.20
+DUP_LOCATION_WEIGHT = 0.20
+DUP_MIN_SCORE = 1.0
+DUP_TIME_WINDOW_DAYS = 7
 
 # Team sets this on a validation split (see scripts/evaluate.py). Placeholder only.
 CONFIDENCE_THRESHOLD = 0.40

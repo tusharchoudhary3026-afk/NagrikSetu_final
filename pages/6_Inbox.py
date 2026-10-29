@@ -28,6 +28,11 @@ if ids:
         "SELECT c.id AS complaint_id,"
         "(SELECT abstained FROM suggestions s WHERE s.complaint_id=c.id ORDER BY s.id DESC LIMIT 1) AS abstained,"
         "(SELECT COUNT(*) FROM challenges h WHERE h.complaint_id=c.id AND h.status='open') AS open_challenges,"
+        "(SELECT status FROM split_proposals p WHERE p.parent_id=c.id) AS split_status,"
+        "(SELECT COUNT(*) FROM incident_links il WHERE il.active=1 AND "
+        "(il.complaint_id=c.id OR il.candidate_complaint_id=c.id)) AS confirmed_duplicate_links,"
+        "(SELECT COUNT(*) FROM duplicate_reviews dr WHERE "
+        "(dr.complaint_id=c.id OR dr.candidate_complaint_id=c.id) AND dr.decision='needs_info') AS pending_duplicate_reviews,"
         "(SELECT event_type FROM ledger l WHERE l.complaint_id=c.id AND l.event_type IN "
         "('accept','edit','clarify','escalate','transfer') ORDER BY l.id DESC LIMIT 1) AS last_decision "
         f"FROM complaints c WHERE c.id IN ({placeholders})", ids)}
@@ -36,11 +41,15 @@ for row in rows:
 df = pd.DataFrame(rows)
 df["status"] = df.apply(
     lambda row: "review requested" if row["open_challenges"] else
-        (row["last_decision"] if pd.notna(row["last_decision"]) else "needs review"),
+        ("split proposed" if row.get("split_status") == "proposed" else
+         row["last_decision"] if pd.notna(row["last_decision"]) else "needs review"),
     axis=1,
 )
 df["kind"] = df["parent_id"].apply(lambda p: "sub-issue" if pd.notna(p) else "case")
 df["uncertain"] = df["abstained"].apply(lambda a: "yes" if a == 1 else "no")
+df["duplicate_review"] = df.apply(
+    lambda row: "confirmed link" if row["confirmed_duplicate_links"] else
+        ("candidate needs information" if row["pending_duplicate_reviews"] else ""), axis=1)
 df["text"] = df["original_text"].apply(lambda t: mask_text(t)[:90])
 df["created_day"] = pd.to_datetime(df["created_at"], errors="coerce").dt.date
 
@@ -70,6 +79,6 @@ m2.metric("Needs review", int((view["status"] == "needs review").sum()))
 m3.metric("Open challenges", int(view["open_challenges"].sum()))
 
 st.dataframe(view[["case_id", "state_name", "city_name", "area_name", "kind", "channel", "language", "location", "issue",
-                   "uncertain", "status", "open_challenges", "text"]],
+                   "uncertain", "status", "split_status", "duplicate_review", "open_challenges", "text"]],
              width="stretch", hide_index=True)
 st.caption("Phone numbers and emails are masked in this view. Nothing here is auto-closed or auto-assigned.")

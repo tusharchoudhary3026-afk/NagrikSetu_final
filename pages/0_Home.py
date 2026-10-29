@@ -4,8 +4,7 @@ from core.auth import require_login
 from core.db import fetch_all, init_db
 from core.portal import list_own_complaints
 from core.ui import apply_demo_style, render_hero
-from core.geo import (is_geography_admin, select_staff_location,
-                      staff_location_snapshot)
+from core.geo import configure_staff_location, staff_location_snapshot
 from core.geo_ui import render_geography_picker
 from core.geo import STAFF_ROLES
 from core.staff_dashboard_ui import render_staff_dashboard
@@ -13,12 +12,11 @@ from core.staff_dashboard_ui import render_staff_dashboard
 
 def _render_area_selection(user, prefix):
     selected = render_geography_picker(prefix)
-    if st.session_state.pop(f"{prefix}-selected", False):
-        st.success("Area selected. Matching complaints are available now.")
-    if st.button("Show complaints for this area", key=f"{prefix}-select"):
+    if st.button("Show complaints from this location", key=f"{prefix}-submit"):
         try:
-            select_staff_location(user, *selected)
-            st.session_state[f"{prefix}-selected"] = True
+            outcome = configure_staff_location(user, *selected)
+            st.success(f"{outcome['area_name']} selected. Matching complaints are now available "
+                       "within your staff role and department.")
             st.rerun()
         except (ValueError, PermissionError) as exc:
             st.error(str(exc))
@@ -82,8 +80,6 @@ if user["role"] == "public":
 else:
     if user["role"] in STAFF_ROLES:
         location_state = staff_location_snapshot(user)
-        if is_geography_admin(user.get("email", "")):
-            st.page_link("pages/12_Area_Access_Admin.py", label="Review staff area-access requests", icon="📍")
         st.subheader("Your selected service areas")
         if location_state["assigned"]:
             if any(row["actor_email"] == "system:demo-admin" for row in location_state["assigned"]):
@@ -92,18 +88,11 @@ else:
                            "Access source": "Self-selected" if row["actor_email"] == user["email"] else row["actor_email"],
                            "Record": row["reason"]}
                           for row in location_state["assigned"]], hide_index=True, width="stretch")
-            with st.expander("Select another area to view"):
-                _render_area_selection(user, "staff-area-request")
         else:
-            st.info("Choose the area you want to review. Matching complaints will appear as soon as you select it.")
-            st.subheader("Select an area to view complaints")
-            _render_area_selection(user, "staff-first-area-request")
-        if location_state["pending"]:
-            st.caption(f"An older area request remains pending: {location_state['pending']['state_code']} / "
-                       f"{location_state['pending']['city_code']} / {location_state['pending']['area_code']}. "
-                       "It does not block areas you select now.")
-        if location_state["last_rejection"]:
-            st.caption(f"Most recent request response: {location_state['last_rejection']['reason']}")
+            st.info("Select a service area below. Complaints from that location become available immediately, "
+                    "subject to your staff role and department.")
+        st.subheader("Choose another service area" if location_state["assigned"] else "Choose a service area")
+        _render_area_selection(user, "staff-area-select")
         render_staff_dashboard(user)
         st.caption("NagrikSetu · Synthetic prototype · SLA targets and ownership data are demo assumptions.")
         st.stop()
@@ -160,7 +149,7 @@ else:
                 """
                 - Suggestions are prompts for review, not final assignments.
                 - Uncertain routes remain visible for a person to assess.
-                - A proposed split is not saved until someone confirms it.
+                - Split proposals are saved for staff review; sub-issues are created only after a reviewer confirms.
                 """
             )
             st.caption("NagrikSetu uses synthetic demo data; department rules are assumptions.")

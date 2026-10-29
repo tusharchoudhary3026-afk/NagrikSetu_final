@@ -1,5 +1,6 @@
 import json
 import streamlit as st
+from streamlit.errors import StreamlitPageNotFoundError
 
 from core.attachment import get_attachments, read_attachment
 from core.config import REASON_CODES, REVIEW_ACTIONS, SIM_LABEL
@@ -11,8 +12,11 @@ from core.ledger import history
 from core.ownership import check_suggestions, detect_bounce, repeat_reassignment
 from core.privacy import mask_text
 from core.reviews import submit_review
-from core.splitter import merge_back
+from core.splitter import confirm_split, merge_back
+from core.intake import ISSUE_CATEGORIES, process as process_intake
+from core.router_baseline import route as route_baseline
 from core.suggestions import selected_department
+from core.safety import assess_safety, record_safety_decision
 from core.ui import require_permission
 from core.geo import is_geography_admin, scoped_complaints
 
@@ -38,6 +42,48 @@ st.caption(f"Service area: {area_label or 'Unassigned · restricted manual-revie
            f"Requested action: {pick.get('requested_action') or 'unspecified'} · "
            f"Missing fields: {pick.get('missing_fields') or 'none recorded'}")
 
+safety = assess_safety(pick["original_text"])
+st.subheader("Safety triage · reviewer decision required")
+st.caption("Prototype rule recommendation only. It does not certify safety, assign ownership, or trigger an emergency response.")
+if safety["safety_flag"] or safety["requires_human_review"]:
+    st.warning(f"{safety['severity'].replace('_', ' ').title()} · {safety['risk_score']}/100 · "
+               f"{safety['context_status'].replace('_', ' ')}")
+else:
+    st.info("No configured active hazard phrase was matched. This does not prove the location is safe.")
+st.write({"Categories": safety["hazard_categories"], "Supporting words from original complaint": safety["evidence"],
+          "Reasons": safety["reasons"], "Rule IDs": safety["rule_ids"],
+          "Rule version": safety["rule_version"], "Configured prototype thresholds": safety["threshold_status"]})
+action_labels = {"confirm": "Confirm safety concern", "change_severity": "Change severity",
+                 "false_positive": "Mark as false positive", "resolved": "Mark as resolved",
+                 "request_information": "Request more information", "escalate": "Escalate for appropriate action"}
+safety_action = st.selectbox("Safety review action", list(action_labels),
+                             format_func=lambda value: action_labels[value], key=f"safety-action-{pick['id']}")
+safety_severity = st.selectbox("Reviewer severity", ["normal_queue", "attention_recommended",
+                                    "priority_safety_review", "urgent_review", "needs_human_verification"],
+                               index=["normal_queue", "attention_recommended", "priority_safety_review",
+                                      "urgent_review", "needs_human_verification"].index(safety["severity"]),
+                               format_func=lambda value: value.replace("_", " ").title(),
+                               key=f"safety-severity-{pick['id']}")
+safety_reason = st.text_input("Reason for safety review decision (required)", key=f"safety-reason-{pick['id']}")
+if st.button("Save safety review decision", key=f"save-safety-{pick['id']}"):
+    try:
+        record_safety_decision(pick["id"], user, safety_action, safety_reason,
+                               severity=safety_severity if safety_action == "change_severity" else None)
+        st.success("Safety decision appended to the case ledger. The original system assessment is preserved.")
+        st.rerun()
+    except (ValueError, PermissionError) as exc:
+        st.error(str(exc))
+
+safety_history = fetch_all("SELECT event_type,actor,reason,details,created_at FROM ledger "
+                           "WHERE complaint_id=? AND event_type LIKE 'safety_review_%' ORDER BY id", (pick["id"],))
+if safety_history:
+    st.markdown("**Previous safety review decisions**")
+    latest_safety_review = safety_history[-1]
+    st.info(f"Latest recorded outcome: {latest_safety_review['event_type'].replace('safety_review_', '').replace('_', ' ')} · "
+            f"{latest_safety_review['created_at']} · {latest_safety_review['actor']}")
+    for item in safety_history:
+        st.caption(f"{item['created_at']} · {item['actor']} · {item['event_type'].replace('safety_review_', '').replace('_', ' ')} · {item['reason']}")
+
 sugs = fetch_all("SELECT * FROM suggestions WHERE complaint_id=? ORDER BY id DESC LIMIT 1", (pick["id"],))
 suggested = None
 top3 = []
@@ -58,17 +104,121 @@ if sugs:
             st.warning(f"No grounded explanation available for {dept}: {exc}")
 
 for overlap in check_suggestions([item["dept"] for item in top3], pick["original_text"]):
+    status = str(overlap.get("verification", "UNKNOWN")).strip().upper()
+    verification_label = "unverified rule" if status in {"ASSUMPTION", "UNKNOWN", "UNVERIFIED"} else status
     st.warning(f"Possible ownership overlap: {overlap['owner']} / {overlap['overlap_owner']} · "
-               f"{overlap['issue_type']} · {overlap['verification']} · {overlap['source']}")
+               f"{overlap['issue_type']} · {verification_label} · Source: {overlap['source']}. "
+               "This flag is not a decision about who is responsible.")
 
 children = fetch_all("SELECT id,original_text FROM complaints WHERE parent_id=? AND is_active=1 ORDER BY id", (pick["id"],))
+pending_splits = fetch_all("SELECT proposal_json FROM split_proposals WHERE parent_id=? AND status='proposed'",
+                           (pick["id"],))
+if pending_splits and not children:
+    st.subheader("Proposed sub-issues · not yet confirmed")
+    try:
+        proposal = json.loads(pending_splits[0]["proposal_json"])
+    except (TypeError, json.JSONDecodeError):
+        proposal = {"parts": []}
+    st.caption("The citizen's original complaint remains intact. Review the spans, then confirm or edit the proposal.")
+    edited_parts = []
+    keep_keys = []
+    source_text = pick["original_text"]
+    for index, part in enumerate(proposal.get("parts", [])):
+        with st.container(border=True):
+            st.markdown(f"**Sub-issue {index + 1} · {part.get('issue', 'unknown')}**")
+            st.write(part.get("text", ""))
+            st.caption(f"Source characters {part.get('start')}–{part.get('end')}")
+            key = f"review-split-keep-{pick['id']}-{index}"
+            keep = st.checkbox("Keep this sub-issue", value=True, key=key)
+            keep_keys.append(key)
+            if not keep:
+                continue
+            text_key = f"review-split-text-{pick['id']}-{index}"
+            snippet = st.text_area("Edit sub-issue text", value=part.get("text", ""), key=text_key)
+            issue_key = f"review-split-issue-{pick['id']}-{index}"
+            categories = ["unknown", *(category for category, _ in ISSUE_CATEGORIES)]
+            issue = st.selectbox("Issue category", categories,
+                                 index=(categories.index(part.get("issue")) if part.get("issue") in categories else 0),
+                                 key=issue_key)
+            route = route_baseline(snippet)
+            dept = selected_department(route)
+            if route["abstained"]:
+                st.warning("No supported department suggestion for this edited text; manual review remains required.")
+            else:
+                st.write(f"Department suggestion: {dept} · evidence: {route['evidence'].get(dept, [])}")
+                try:
+                    explanation = generate_grounded_explanation(snippet, dept)
+                    st.caption(f"Responsibility source: {explanation['rule_source']} · {explanation['verification']}")
+                except ValueError as exc:
+                    st.caption(f"No responsibility-table explanation matched: {exc}")
+                choices = [item["dept"] for item in route.get("top3", [])]
+                if len(choices) > 1:
+                    selected = st.selectbox("Reviewer-adjusted suggestion (evidence-backed)", choices,
+                                            index=choices.index(dept),
+                                            key=f"review-split-department-{pick['id']}-{index}")
+                    if selected != dept:
+                        ranked = list(route["top3"])
+                        ranked.sort(key=lambda item: item["dept"] != selected)
+                        route["top3"] = ranked
+                        route["confidence"] = ranked[0]["score"]
+            for conflict in part.get("ownership_conflicts", []):
+                st.info(f"Possible ownership overlap: {conflict['owner']} / {conflict['overlap_owner']} · "
+                        f"{conflict['verification']} · {conflict['source']}")
+            part_safety = assess_safety(snippet)
+            if part_safety["safety_flag"]:
+                st.warning(f"Sub-issue safety suggestion: {part_safety['severity'].replace('_', ' ').title()} · "
+                           f"support: {part_safety['evidence']}")
+            edited_parts.append({**part, "text": snippet, "issue": issue, "suggestion": route})
+    added_text = st.text_input("Add a sub-issue (optional; must be copied exactly from the original text)",
+                               key=f"review-split-added-{pick['id']}")
+    if added_text.strip():
+        added_text = added_text.strip()
+        start = source_text.find(added_text)
+        if start >= 0:
+            added_rec = process_intake(added_text)
+            added_route = route_baseline(added_text)
+            edited_parts.append({"text": added_text, "issue": added_rec["issue"],
+                                 "suggestion": added_route, "start": start,
+                                 "end": start + len(added_text), "issue_evidence": added_rec["issue_evidence"]})
+        else:
+            st.warning("An added sub-issue must be an exact span of the original complaint.")
+    edit_reason = st.text_input("Reason for editing this split (required only if you change it)",
+                                key=f"review-split-reason-{pick['id']}")
+    if st.button("Confirm split", key=f"confirm-split-{pick['id']}", type="primary"):
+        try:
+            if len(edited_parts) < 2:
+                raise ValueError("Keep at least two sub-issues, or leave the complaint intact.")
+            cursor = 0
+            for part in edited_parts:
+                start = source_text.find(part["text"], cursor)
+                if start < 0:
+                    raise ValueError("Edited sub-issue text must remain an exact span of the original complaint.")
+                part["start"], part["end"] = start, start + len(part["text"])
+                cursor = part["end"]
+            original_parts = proposal.get("parts", [])
+            changed = (len(edited_parts) != len(original_parts) or any(
+                current.get("text") != original.get("text") or current.get("issue") != original.get("issue")
+                or current.get("suggestion") != original.get("suggestion")
+                for current, original in zip(edited_parts, original_parts)))
+            if changed and not edit_reason.strip():
+                raise ValueError("Enter a reason before saving split edits.")
+            confirm_split(pick["id"], pick["case_id"], edited_parts, user["role"],
+                          actor_email=user.get("email"), actor_user=user,
+                          reason=edit_reason if changed else None, edited=changed)
+            st.success("The reviewer-confirmed sub-issues were saved under the same case ID.")
+            st.rerun()
+        except (ValueError, PermissionError) as exc:
+            st.error(str(exc))
+
 if children:
     st.subheader("Confirmed sub-issues")
     st.dataframe([{"id": child["id"], "text": mask_text(child["original_text"])} for child in children],
                  hide_index=True, width="stretch")
+    merge_reason = st.text_input("Reason for merging back (required)", key=f"merge-split-reason-{pick['id']}")
     if st.button("Merge split back into the intact complaint"):
         try:
-            count = merge_back(pick["id"], user["role"], actor_email=user.get("email"), actor_user=user)
+            count = merge_back(pick["id"], user["role"], merge_reason,
+                               actor_email=user.get("email"), actor_user=user)
             st.success(f"Merged {count} child views back. All child records and history were retained.")
             st.rerun()
         except (ValueError, PermissionError) as exc:
@@ -99,7 +249,8 @@ if not attachments:
     st.caption("No photos attached.")
 
 st.subheader("Possible duplicate or related incidents")
-st.caption("Scores rank candidates; they are not probabilities or duplicate decisions. Similarity never changes status or routing.")
+st.caption("Similarity signals rank candidates; they are not probabilities or duplicate decisions. "
+           "Hindi-English cross-language matching can miss related reports. Similarity never changes status or routing.")
 candidates = find_candidates(pick["id"], actor_user=user)
 if candidates:
     candidate = st.selectbox("Candidate", candidates,
@@ -110,8 +261,9 @@ if candidates:
     left.write(mask_text(pick["original_text"]))
     right.markdown(f"**Candidate {candidate['case_id']}**")
     right.write(mask_text(candidate["original_text"]))
-    st.write({"shared_terms": candidate["shared_terms"], "text_score": candidate["text_score"],
-              "location_match": candidate["location_match"], "time_match": candidate["time_match"],
+    st.write({"shared_terms": candidate["shared_terms"], "shared_issue_labels": candidate["shared_issue_labels"],
+              "text similarity signal": candidate["text_sim"], "same issue": candidate["same_issue"],
+              "location relation": candidate["location"], "time_match": candidate["time_match"],
               "time_difference_days": candidate["time_difference_days"],
               "missing_fields": candidate["missing_fields"], "conflicts": candidate["conflicts"]})
     decision = st.selectbox("Human decision", ["same_incident", "related", "different", "needs_info", "unlink"],
@@ -130,6 +282,11 @@ if candidates:
             st.error(str(exc))
 else:
     st.info("No possible candidates found. Missing location or time may limit matching.")
+try:
+    st.page_link("pages/9_Duplicates.py", label="Open duplicate review", icon="🔎")
+except StreamlitPageNotFoundError:
+    # Also allow this page to be smoke-tested directly outside app.py navigation.
+    st.caption("Open Duplicates from the Review menu.")
 
 st.subheader("Ledger (append-only)")
 h = history(pick["id"], actor_user=user)

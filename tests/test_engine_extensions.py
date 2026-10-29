@@ -20,13 +20,10 @@ def _geo_case(case_id, *, location, issue="Electricity", area_name="Gole Ka Mand
 
 
 def _approved_gwalior_reviewer(staff_user):
-    from core.geo import approve_area_request, configure_staff_location
+    from core.geo import configure_staff_location
 
     reviewer = staff_user("reviewer", "Grievance Cell")
-    admin = staff_user("reviewer", "Grievance Cell")
-    request = configure_staff_location(reviewer, "mp", "mp-gwalior",
-                                       "mp-gwalior-gole-ka-mandir", "Hotspot test scope")
-    approve_area_request(request["request_id"], admin["email"], "Synthetic test approval")
+    configure_staff_location(reviewer, "mp", "mp-gwalior", "mp-gwalior-gole-ka-mandir")
     return reviewer
 
 
@@ -242,11 +239,8 @@ def test_routing_review_queue_page_has_split_action_and_staff_assignment_ui(db, 
     from core.db import insert_suggestion
 
     reviewer = staff_user("reviewer", "Grievance Cell")
-    admin = staff_user("reviewer", "Grievance Cell")
-    from core.geo import approve_area_request, configure_staff_location
-    request = configure_staff_location(reviewer, "mp", "mp-gwalior",
-                                       "mp-gwalior-gole-ka-mandir", "review queue test")
-    approve_area_request(request["request_id"], admin["email"], "synthetic review request test")
+    from core.geo import configure_staff_location
+    configure_staff_location(reviewer, "mp", "mp-gwalior", "mp-gwalior-gole-ka-mandir")
     resident = register_user("queue-citizen@example.test", "Resident", "Secure!River72",
                              password_confirm="Secure!River72")
     complaint_id = _geo_case("CASE-QUEUE-SPLIT", location="Gole Ka Mandir",

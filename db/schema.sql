@@ -23,7 +23,22 @@ CREATE TABLE IF NOT EXISTS complaints (
     city_name       TEXT,
     area_code       TEXT,
     area_name       TEXT,
+    source_start    INTEGER,
+    source_end      INTEGER,
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- A citizen-visible split remains a proposal until a reviewer confirms it.
+CREATE TABLE IF NOT EXISTS split_proposals (
+    parent_id      INTEGER PRIMARY KEY REFERENCES complaints(id),
+    proposal_json  TEXT NOT NULL,
+    status         TEXT NOT NULL DEFAULT 'proposed'
+                   CHECK(status IN ('proposed','confirmed','edited','merged_back')),
+    lead_department TEXT,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    decided_by     TEXT,
+    reason         TEXT
 );
 
 -- Geographic access requests and grants are events; never rewrite their history.
@@ -38,6 +53,22 @@ CREATE TABLE IF NOT EXISTS government_area_events (
     reason      TEXT NOT NULL,
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Staff may select the service areas they need for case work without waiting
+-- for an administrator. This stores active self-selected scopes separately
+-- from the administrator approval history above.
+CREATE TABLE IF NOT EXISTS staff_selected_areas (
+    user_id     INTEGER NOT NULL REFERENCES users(id),
+    state_code  TEXT NOT NULL,
+    city_code   TEXT NOT NULL,
+    area_code   TEXT NOT NULL,
+    actor_email TEXT NOT NULL,
+    selected_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id,state_code,city_code,area_code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_staff_selected_areas_user
+ON staff_selected_areas(user_id,state_code,city_code,area_code);
 
 CREATE INDEX IF NOT EXISTS idx_geo_events_user_area_id
 ON government_area_events(user_id,state_code,city_code,area_code,id);
@@ -92,6 +123,56 @@ WHEN lower(trim(NEW.event_type)) IN (
     'duplicate_merge', 'auto_duplicate_merge'
 )
 BEGIN SELECT RAISE(ABORT, 'automatic complaint final action is prohibited'); END;
+
+CREATE TRIGGER IF NOT EXISTS ledger_extraction_correction_requires_reason
+BEFORE INSERT ON ledger
+WHEN lower(trim(NEW.event_type))='extraction_corrected' AND length(trim(COALESCE(NEW.reason,'')))=0
+BEGIN SELECT RAISE(ABORT, 'extraction corrections require a reason'); END;
+
+CREATE TRIGGER IF NOT EXISTS ledger_split_edit_requires_reason
+BEFORE INSERT ON ledger
+WHEN lower(trim(NEW.event_type)) IN ('split_edited','split_merged_back')
+ AND length(trim(COALESCE(NEW.reason,'')))=0
+BEGIN SELECT RAISE(ABORT, 'split edits and merge-back require a reason'); END;
+
+CREATE TRIGGER IF NOT EXISTS ledger_duplicate_decision_requires_reason
+BEFORE INSERT ON ledger
+WHEN lower(trim(NEW.event_type)) IN ('duplicate_confirmed','duplicate_rejected','duplicate_unlinked')
+ AND length(trim(COALESCE(NEW.reason,'')))=0
+BEGIN SELECT RAISE(ABORT, 'duplicate decisions require a reason'); END;
+
+-- Sidecar chain preserves the original append-only ledger rows. Hashes are
+-- generated atomically by a connection-registered SQLite function.
+CREATE TABLE IF NOT EXISTS ledger_integrity (
+    ledger_id       INTEGER PRIMARY KEY REFERENCES ledger(id),
+    previous_hash   TEXT NOT NULL,
+    event_hash      TEXT NOT NULL
+);
+
+CREATE TRIGGER IF NOT EXISTS ledger_integrity_after_insert
+AFTER INSERT ON ledger
+BEGIN
+    INSERT INTO ledger_integrity (ledger_id, previous_hash, event_hash)
+    VALUES (
+        NEW.id,
+        COALESCE((SELECT event_hash FROM ledger_integrity ORDER BY ledger_id DESC LIMIT 1),
+                 'NYAYAFLOW_LEDGER_GENESIS_V1'),
+        nyaya_ledger_hash(
+            COALESCE((SELECT event_hash FROM ledger_integrity ORDER BY ledger_id DESC LIMIT 1),
+                     'NYAYAFLOW_LEDGER_GENESIS_V1'),
+            NEW.id, NEW.complaint_id, NEW.event_type, NEW.actor, NEW.suggested_dept,
+            NEW.final_dept, NEW.reason, NEW.reason_code, NEW.details, NEW.created_at
+        )
+    );
+END;
+
+CREATE TRIGGER IF NOT EXISTS ledger_integrity_no_update
+BEFORE UPDATE ON ledger_integrity
+BEGIN SELECT RAISE(ABORT, 'ledger integrity history is append-only'); END;
+
+CREATE TRIGGER IF NOT EXISTS ledger_integrity_no_delete
+BEFORE DELETE ON ledger_integrity
+BEGIN SELECT RAISE(ABORT, 'ledger integrity history is append-only'); END;
 
 CREATE TABLE IF NOT EXISTS challenges (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,6 +233,11 @@ CREATE TABLE IF NOT EXISTS incident_links (
     active                INTEGER NOT NULL DEFAULT 1,
     created_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_duplicate_reviews_pair
+ON duplicate_reviews(complaint_id,candidate_complaint_id,id);
+CREATE INDEX IF NOT EXISTS idx_incident_links_pair
+ON incident_links(complaint_id,candidate_complaint_id,active,id);
 
 CREATE TRIGGER IF NOT EXISTS incident_links_no_update
 BEFORE UPDATE ON incident_links
@@ -261,6 +347,24 @@ CREATE TABLE IF NOT EXISTS corrections (
     is_verified  INTEGER NOT NULL DEFAULT 0,
     verified_by  TEXT
 );
+
+CREATE TABLE IF NOT EXISTS safety_rubric_versions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    version     INTEGER NOT NULL UNIQUE,
+    status      TEXT NOT NULL,
+    rules_json  TEXT NOT NULL,
+    saved_by    TEXT NOT NULL,
+    reason      TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TRIGGER IF NOT EXISTS safety_rubric_versions_no_update
+BEFORE UPDATE ON safety_rubric_versions
+BEGIN SELECT RAISE(ABORT, 'safety rubric version history is append-only'); END;
+
+CREATE TRIGGER IF NOT EXISTS safety_rubric_versions_no_delete
+BEFORE DELETE ON safety_rubric_versions
+BEGIN SELECT RAISE(ABORT, 'safety rubric version history is append-only'); END;
 
 CREATE TABLE IF NOT EXISTS correction_reviews (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

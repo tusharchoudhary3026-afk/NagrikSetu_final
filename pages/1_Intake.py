@@ -4,11 +4,17 @@ import streamlit as st
 from core import intake, ownership, router_baseline, splitter
 from core.attachment import save_attachment
 from core.config import SIM_LABEL, feature_enabled
-from core.db import init_db, insert_complaint, insert_suggestion
-from core.ledger import log_event
-from core.safety import flag_safety
-from core.security import attachment_encryption_status
+from core.db import init_db, insert_public_submission
+from core.safety import assess_safety
+from core.explanation import generate_grounded_explanation
 from core.suggestions import selected_department
+from core.security import attachment_encryption_status
+<<<<<<< HEAD
+from core.suggestions import selected_department
+=======
+from core.speech import validate_transcript_submission
+from core.speech_component import speech_input
+>>>>>>> d0cd91f9ec3528c5e1c941df23c8fdf5220e492d
 from core.ui import apply_demo_style, render_hero, require_permission
 from core.geo import staff_area_scope
 from core.sarvam_speech import transcribe_audio
@@ -64,9 +70,14 @@ else:
 if st.button("Process complaint", type="primary"):
     try:
         if not assigned_areas:
+<<<<<<< HEAD
             raise ValueError("Select a service area before using staff-assisted intake.")
         if not text or not text.strip():
             raise ValueError("Complaint text cannot be empty.")
+=======
+            raise ValueError("You need an approved service area before using staff-assisted intake.")
+        text = validate_transcript_submission(text, speech_used, transcript_confirmed)
+>>>>>>> d0cd91f9ec3528c5e1c941df23c8fdf5220e492d
         rec = intake.process(text, channel, loc_hint)
         area = area_by_key[selected_area]
         rec.update({key: area[key] for key in ("state_code", "state_name", "city_code", "city_name",
@@ -75,7 +86,12 @@ if st.button("Process complaint", type="primary"):
         st.session_state["rec"] = rec
         st.session_state["split"] = splitter.propose_split(text)
         st.session_state["route"] = router_baseline.route(text)
+<<<<<<< HEAD
         st.session_state["safety"] = flag_safety(text)
+=======
+        st.session_state["safety"] = assess_safety(text)
+        st.session_state["speech_transcript_pending"] = False
+>>>>>>> d0cd91f9ec3528c5e1c941df23c8fdf5220e492d
     except ValueError as exc:
         st.error(str(exc))
 
@@ -93,8 +109,11 @@ if "rec" in st.session_state:
 
     safety = st.session_state.get("safety", {"flagged": False})
     if safety["flagged"]:
-        st.error(f"Human attention flag · {safety['rubric_status']}: " + "; ".join(x["label"] for x in safety["flags"]))
-        st.caption(safety["message"])
+        st.error(f"{safety['severity'].replace('_', ' ').title()} · score {safety['risk_score']}/100 · "
+                 f"human review required · rules {', '.join(safety['rule_ids'])}")
+        st.write({"Hazard categories": safety["hazard_categories"], "Evidence": safety["evidence"],
+                  "Reasons": safety["reasons"], "Context": safety["context_status"]})
+        st.caption(safety["message"] + " " + str(safety.get("threshold_status", "")))
 
     st.subheader("Routing suggestions (keyword baseline)")
     if rt["abstained"]:
@@ -109,7 +128,28 @@ if "rec" in st.session_state:
     st.write(sp["note"])
     if sp["is_compound"]:
         for part in sp["parts"]:
-            st.write(f"- {part['text']} → {[x['dept'] for x in part['suggestion']['top3'][:1]]}")
+            with st.container(border=True):
+                st.markdown(f"**{part['issue']}** · {part['text']}")
+                part_route = part["suggestion"]
+                dept = selected_department(part_route)
+                if dept:
+                    evidence = part_route.get("evidence", {}).get(dept, [])
+                    st.write(f"Department suggestion: {dept} · supporting words: {evidence}")
+                    try:
+                        explanation = generate_grounded_explanation(part["text"], dept)
+                        st.caption(f"Responsibility source: {explanation['rule_source']} · "
+                                   f"{explanation['verification']}")
+                    except ValueError as exc:
+                        st.caption(f"No responsibility-table explanation matched: {exc}")
+                else:
+                    st.warning("No supported department suggestion for this issue; human review is needed.")
+                part_safety = assess_safety(part["text"])
+                if part_safety["safety_flag"]:
+                    st.warning(f"Issue safety suggestion: {part_safety['severity'].replace('_', ' ').title()} · "
+                               f"evidence: {part_safety['evidence']}")
+                for conflict in part.get("ownership_conflicts", []):
+                    st.info(f"Possible ownership overlap: {conflict['owner']} / {conflict['overlap_owner']} · "
+                            f"{conflict['verification']} · {conflict['source']}")
     confirm_split = False
     if sp["is_compound"] and user["role"] == "government":
         confirm_split = st.checkbox("I reviewed and confirm these proposed sub-issues")
@@ -135,13 +175,8 @@ if "rec" in st.session_state:
             st.stop()
         rec["case_id"] = f"CASE-{uuid.uuid4().hex.upper()}"
         try:
-            cid = insert_complaint(rec)
-            insert_suggestion(cid, "baseline", rt["top3"], rt["evidence"], rt["confidence"], rt["abstained"])
-            top = selected_department(rt)
-            log_event(cid, "suggested", "system", suggested_dept=top,
-                      details={"abstained": rt["abstained"], "confidence": rt["confidence"],
-                               "safety_flags": safety.get("flags", []),
-                               "extracted_issue_evidence": rec.get("issue_evidence", [])}, actor_user=user)
+            cid = insert_public_submission(rec, rt, submitted_by=user["id"],
+                                           split_proposal=sp if sp["is_compound"] else None)
             if photo is not None:
                 save_attachment(cid, photo, user["role"], actor_user=user)
             if confirm_split:

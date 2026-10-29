@@ -10,6 +10,11 @@ from pathlib import Path
 from core import auth
 from core.attachment import read_attachment, save_attachment
 from core.db import fetch_all, insert_complaint, insert_public_submission
+
+
+def _confirm_public_preview(app):
+    app.checkbox(key="public-preview-confirmed").set_value(True).run()
+    app.button(key="public-preview-submit").click().run()
 from core import db as dbm
 from core.portal import list_own_complaints
 from core.reviews import submit_review
@@ -104,8 +109,8 @@ def test_public_portal_returns_only_the_owner_cases(db):
     assert other_id != own_id
 
 
-def test_public_submission_is_atomic_and_visible_after_area_approval(db, staff_user, monkeypatch):
-    from core.geo import approve_area_request, configure_staff_location
+def test_public_submission_is_atomic_and_visible_after_staff_selects_area(db, staff_user, monkeypatch):
+    from core.geo import configure_staff_location
     from core.staff_dashboard import list_staff_cases
     from pathlib import Path
 
@@ -123,6 +128,11 @@ def test_public_submission_is_atomic_and_visible_after_area_approval(db, staff_u
     app.text_area[0].set_value(original)
     app.form_submit_button[0].click().run()
     assert not app.exception
+    assert "public_intake_preview" in app.session_state
+    assert fetch_all("SELECT id FROM complaints WHERE submitted_by=? AND original_text=?",
+                     (resident["id"], original)) == []
+    _confirm_public_preview(app)
+    assert not app.exception
     assert any("Your complaint was submitted" in item.value for item in app.success)
     case_id = app.session_state["last_public_submission"]["case_id"]
     complaint_id = fetch_all("SELECT id FROM complaints WHERE case_id=?", (case_id,))[0]["id"]
@@ -130,6 +140,7 @@ def test_public_submission_is_atomic_and_visible_after_area_approval(db, staff_u
     abstained_text = "gibberish xyz 123"
     app.text_area[0].set_value(abstained_text)
     app.form_submit_button[0].click().run()
+    _confirm_public_preview(app)
     assert not app.exception
     abstained_case_id = app.session_state["last_public_submission"]["case_id"]
     abstained_id = fetch_all("SELECT id FROM complaints WHERE case_id=?", (abstained_case_id,))[0]["id"]
@@ -149,12 +160,8 @@ def test_public_submission_is_atomic_and_visible_after_area_approval(db, staff_u
 
     officer = staff_user("operator", "Electricity Dept")
     request = configure_staff_location(officer, "mp", "mp-gwalior",
-                                       "mp-gwalior-gole-ka-mandir", "Verified test scope")
-    assert request["status"] == "pending"
-    assert list_staff_cases(officer) == []
-
-    admin = staff_user("reviewer", "Grievance Cell")
-    approve_area_request(request["request_id"], admin["email"], "Approved synthetic Gwalior test scope")
+                                       "mp-gwalior-gole-ka-mandir")
+    assert request["status"] == "selected"
     cases = list_staff_cases(officer)
     operator_cases = {case["id"]: case for case in cases}
     assert complaint_id in operator_cases and abstained_id in operator_cases
@@ -168,8 +175,8 @@ def test_public_submission_is_atomic_and_visible_after_area_approval(db, staff_u
     # though they have no department assignment for an operator inbox.
     reviewer = staff_user("reviewer", "Grievance Cell")
     review_request = configure_staff_location(reviewer, "mp", "mp-gwalior",
-                                              "mp-gwalior-gole-ka-mandir", "Verified test scope")
-    approve_area_request(review_request["request_id"], admin["email"], "Approved synthetic Gwalior test scope")
+                                              "mp-gwalior-gole-ka-mandir")
+    assert review_request["status"] == "selected"
     review_cases = {case["id"]: case for case in list_staff_cases(reviewer)}
     assert complaint_id in review_cases
     assert review_cases[complaint_id]["original_text"] == original
@@ -201,6 +208,7 @@ def test_public_form_resolves_normalized_english_and_hindi_area_aliases_without_
         location_input = next(item for item in app.text_input if item.label == "Street or nearby landmark (optional)")
         location_input.set_value(location)
         app.form_submit_button[0].click().run()
+        _confirm_public_preview(app)
         assert not app.exception
         case_id = app.session_state["last_public_submission"]["case_id"]
         stored = fetch_all("SELECT location,area_code,area_name,state_code,city_code FROM complaints WHERE case_id=?",
@@ -209,6 +217,43 @@ def test_public_form_resolves_normalized_english_and_hindi_area_aliases_without_
         assert stored["area_code"] == "mp-gwalior-gole-ka-mandir"
         assert stored["area_name"] == "Gole Ka Mandir"
         assert (stored["state_code"], stored["city_code"]) == ("mp", "mp-gwalior")
+
+
+def test_citizen_confirms_and_can_correct_extracted_fields_before_any_database_write(db):
+    from pathlib import Path
+    import json
+
+    resident = auth.register_user("confirm-fields@example.test", "Resident", "Secure!River72",
+                                  password_confirm="Secure!River72")
+    app = AppTest.from_file(Path(__file__).resolve().parent.parent / "pages/10_Public_Portal.py",
+                            default_timeout=30)
+    app.session_state["authenticated_user"] = resident
+    app.run()
+    app.selectbox(key="resident-complaint-state").select_index(1).run()
+    app.selectbox(key="resident-complaint-city-mp").select_index(1).run()
+    app.selectbox(key="resident-complaint-area-mp-gwalior").select_index(2).run()
+    original = "the streetlight is not working near my home"
+    app.text_area[0].set_value(original)
+    app.form_submit_button[0].click().run()
+
+    assert not app.exception
+    assert "public_intake_preview" in app.session_state
+    assert any("Review extracted details before submission" in item.value for item in app.subheader)
+    assert fetch_all("SELECT id FROM complaints WHERE submitted_by=?", (resident["id"],)) == []
+    app.selectbox(key="public-preview-issue").select_index(5).run()
+    _confirm_public_preview(app)
+    assert not app.exception
+
+    case_id = app.session_state["last_public_submission"]["case_id"]
+    complaint = fetch_all("SELECT * FROM complaints WHERE case_id=?", (case_id,))[0]
+    suggestion = fetch_all("SELECT * FROM suggestions WHERE complaint_id=?", (complaint["id"],))[0]
+    event = fetch_all("SELECT details FROM ledger WHERE complaint_id=?", (complaint["id"],))[0]
+    assert complaint["original_text"] == original
+    assert complaint["issue"] == "Road damage"
+    assert json.loads(suggestion["top3"])[0]["dept"] == "Electricity Dept"
+    details = json.loads(event["details"])
+    assert details["extraction_corrections"]["issue"] == {
+        "extracted": "Electricity", "confirmed": "Road damage"}
 
 
 def test_public_submission_rolls_back_if_suggestion_or_ledger_write_fails(db):
@@ -243,6 +288,7 @@ def test_public_form_displays_error_and_saves_no_case_when_database_write_fails(
     original = "the streetlight is not working in my area"
     app.text_area[0].set_value(original)
     app.form_submit_button[0].click().run()
+    _confirm_public_preview(app)
 
     assert not app.exception
     assert any("could not be saved" in item.value for item in app.error)

@@ -1,4 +1,4 @@
-issue_type,owner,overlap_owner,source,verification
+issue_type,owner,overlap_owner,source,verification,routing_cues
 Pothole / damaged road / footpath,Roads Dept,,"Gwalior Municipal Corporation (GMC) has an online grievance service listed at services.india.gov.in/service/search?kw=gwalior (visited 13 Oct 2026). Department-wise split NOT found publicly; grouping is our assumption - verify with GMC.",ASSUMPTION
 Waterlogging on road,Drainage Dept,Roads Dept,"Same listing; ownership of road waterlogging is a plausible overlap, not confirmed.",ASSUMPTION
 Blocked drain / sewer overflow,Drainage Dept,,"services.india.gov.in lists 'Water and Sewerage Charges for GMC' (existence of sewerage service only); department split unverified.",ASSUMPTION
@@ -7,3 +7,4 @@ Garbage / dustbin / dead animal / toilet cleaning,Sanitation Dept,,"Grouping ass
 Streetlight / hanging wire,Electricity Dept,,"Assumed. Real ownership may split between GMC and the power distribution company; verify.",ASSUMPTION
 Water supply / tap / pressure / pipeline leak,Water Supply Dept,,"services.india.gov.in lists water bill payment for Gwalior (existence of water service only); department split unverified.",ASSUMPTION
 Burst water pipe flooding road,Water Supply Dept,Roads Dept,"Plausible overlap, not confirmed.",ASSUMPTION
+Damaged pipeline / leaking pipeline / burst pipeline / damaged pipe / leaking pipe / burst pipe,Water Supply Dept,Drainage Dept,"Prototype ambiguity rule: damaged, leaking, or burst pipe infrastructure may be water supply or sewerage/drainage. Department split is not verified with GMC; staff must review.",ASSUMPTION,"damaged pipeline;pipeline damaged;leaking pipeline;pipeline leaking;pipeline leak;burst pipeline;pipeline burst;damaged pipe;pipe damaged;leaking pipe;pipe leaking;pipe leak;burst pipe;pipe burst"

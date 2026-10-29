@@ -234,14 +234,11 @@ def test_operator_duplicate_candidates_do_not_query_other_departments(db, staff_
 def test_uncertain_languages_compound_duplicate_and_missing_area_remain_visible(db, staff_user):
     from core import intake, router_baseline
     from core.db import insert_public_submission
-    from core.geo import approve_area_request, configure_staff_location
+    from core.geo import configure_staff_location
     from core.staff_dashboard import list_staff_cases
 
     reviewer = staff_user("reviewer", "Grievance Cell")
-    admin = staff_user("reviewer", "Grievance Cell")
-    request = configure_staff_location(reviewer, "mp", "mp-gwalior",
-                                       "mp-gwalior-gole-ka-mandir", "Test reviewer area")
-    approve_area_request(request["request_id"], admin["email"], "Synthetic test approval")
+    configure_staff_location(reviewer, "mp", "mp-gwalior", "mp-gwalior-gole-ka-mandir")
 
     texts = [
         "The streetlight is not working in my area",  # English

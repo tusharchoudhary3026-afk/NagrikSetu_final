@@ -13,7 +13,7 @@ from .db import fetch_all, get_conn
 from .geo import is_demo_citywide_user, is_geography_admin, scoped_complaints
 from .intake import normalize_location
 from .ownership import check_suggestions, detect_bounce, repeat_reassignment
-from .safety import flag_safety
+from .safety import assess_safety
 from .suggestions import selected_department
 
 DEPARTMENTS = {
@@ -94,7 +94,9 @@ def _load_scoped_rows(actor):
         f"WHERE complaint_id IN ({marks}) GROUP BY complaint_id) latest ON latest.id=s.id", ids)
     challenges = fetch_all(
         f"SELECT * FROM challenges WHERE complaint_id IN ({marks}) AND status='open' ORDER BY id", ids)
+    split_rows = fetch_all(f"SELECT parent_id,status FROM split_proposals WHERE parent_id IN ({marks})", ids)
     event_map, suggestion_map, challenge_map = {}, {}, {}
+    split_map = {row["parent_id"]: row["status"] for row in split_rows}
     for event in events:
         event_map.setdefault(event["complaint_id"], []).append(event)
     for suggestion in suggestions:
@@ -128,7 +130,7 @@ def _load_scoped_rows(actor):
             status = "new"
         else:
             status = "pending"
-        safety = flag_safety(row.get("original_text") or "")
+        safety = assess_safety(row.get("original_text") or "")
         overlaps = check_suggestions([item.get("dept", "") for item in top3], row.get("original_text") or "")
         enriched = dict(row)
         enriched.update({
@@ -140,6 +142,7 @@ def _load_scoped_rows(actor):
             # a confidently routed case just because a suggestion row is absent.
             "uncertain": suggestion is None or bool(suggestion["abstained"]),
             "open_challenges": open_challenges,
+            "split_status": split_map.get(row["id"]),
             "status": status,
             "last_action": last_action,
             "history": history,
@@ -250,7 +253,7 @@ def _authorized_case(user, complaint_id, *, writing=False):
     cases = list_staff_cases(actor)
     case = next((item for item in cases if item["id"] == int(complaint_id)), None)
     if not case:
-        raise PermissionError("This complaint is outside your department or verified service area.")
+        raise PermissionError("This complaint is outside your department or selected service areas.")
     if writing and case["status"] == "resolved":
         raise ValueError("This complaint is resolved and cannot receive another action.")
     return actor, case
@@ -364,8 +367,9 @@ def get_staff_case_detail(user, complaint_id):
     return {"complaint": complaint, "status": case["status"], "sla": case["sla"],
             "suggested_department": case["suggested_department"],
             "current_department": case["current_department"], "uncertain": case["uncertain"],
+            "split_status": case.get("split_status"),
             "routing_history": evidence, "ownership_conflicts": conflicts,
-            "safety": flag_safety(complaint["original_text"]), "duplicates": duplicates,
+            "safety": assess_safety(complaint["original_text"]), "duplicates": duplicates,
             "confirmed_subissues": subissues,
             "open_challenges": case["open_challenges"], "timeline": events,
             "bounce_warning": bounce, "repeat_reassignment": repeated,

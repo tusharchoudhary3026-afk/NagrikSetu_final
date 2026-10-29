@@ -1,6 +1,6 @@
 # Demo staff service-area access fix — 2026-10-29
 
-> **Policy update:** The administrator approval gate for staff area selection was removed afterward. This report remains accurate for the synthetic demo assignment described below; ordinary staff can now select a listed area directly. See [STAFF_AREA_SELF_SELECTION_2026-10-29.md](STAFF_AREA_SELF_SELECTION_2026-10-29.md).
+**Superseded for ordinary staff:** a later update allows staff to select any configured service area immediately without an administrator request. The opt-in city-wide grants described below remain available to the three synthetic demo accounts but are no longer needed for location access. See `STAFF_AREA_SELF_SELECTION_2026-10-29.md`.
 
 ## Root cause and phase 0 findings
 

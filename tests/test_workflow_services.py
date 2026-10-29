@@ -65,7 +65,9 @@ def test_duplicate_decision_requires_reason_and_preserves_reversible_history(db,
     links = fetch_all("SELECT * FROM incident_links")
     assert links[0] == before[0] and len(links) == 2 and links[1]["active"] == 0
     events = fetch_all("SELECT event_type FROM ledger WHERE complaint_id=?", (first,))
-    assert [e["event_type"] for e in events] == ["duplicate_linked", "duplicate_unlinked"]
+    assert [e["event_type"] for e in events] == [
+        "duplicate_confirmed", "duplicate_linked", "duplicate_unlinked"
+    ]
 
 
 def test_duplicate_candidate_different_date_is_suppressed_and_scores_are_not_probabilities(db):
@@ -102,7 +104,7 @@ def test_duplicate_candidates_ignore_inactive_split_children(db, staff_user):
         {"text": "Streetlight is broken", "suggestion": {"top3": [], "evidence": {}, "confidence": 0, "abstained": True}},
         {"text": "Garbage is piled near park", "suggestion": {"top3": [], "evidence": {}, "confidence": 0, "abstained": True}},
     ], "reviewer", actor_user=reviewer)
-    merge_back(parent_id, "reviewer", actor_user=reviewer)
+    merge_back(parent_id, "reviewer", "Reviewed and merged the split back", actor_user=reviewer)
     assert all(row["complaint_id"] not in children for row in duplicates.find_candidates(parent_id))
     with pytest.raises(ValueError, match="Complaint not found"):
         duplicates.find_candidates(children[0])
@@ -371,7 +373,7 @@ def test_split_confirmation_and_merge_back_keep_original_child_history(db, staff
         {"text": "Garbage is piled near park", "suggestion": {"top3": [], "evidence": {}, "confidence": 0, "abstained": True}},
     ], "reviewer", actor_user=reviewer)
     assert len(ids) == 2
-    assert merge_back(cid, "reviewer", actor_user=reviewer) == 2
+    assert merge_back(cid, "reviewer", "Reviewed and merged the split back", actor_user=reviewer) == 2
     assert fetch_all("SELECT is_active FROM complaints WHERE id IN (?,?) ORDER BY id", tuple(ids)) == [
         {"is_active": 0}, {"is_active": 0}]
     assert [event["event_type"] for event in history(cid)] == ["split_confirmed", "split_merged_back"]

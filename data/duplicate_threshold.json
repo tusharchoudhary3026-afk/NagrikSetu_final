@@ -1,23 +1,23 @@
 {
   "schema_version": 1,
-  "threshold": 0.8375,
+  "threshold": 1.0,
   "time_window_days": 7,
   "weights": {
-    "text": 0.65,
-    "location": 0.2,
-    "time": 0.15
+    "text": 0.6,
+    "issue": 0.2,
+    "location": 0.2
   },
   "tuned_on_split": "dev",
   "tuning_metric": "F1 with a preferred precision floor of 0.80",
   "dev_precision_floor": 0.8,
-  "dev_precision_floor_met": true,
-  "dev_tuning_note": "preferred precision floor met",
+  "dev_precision_floor_met": false,
+  "dev_tuning_note": "no non-zero-prediction dev threshold met the preferred precision floor; conservative configured threshold retained",
   "dev_pairs": 20,
-  "dev_true_positive": 1,
+  "dev_true_positive": 0,
   "dev_false_positive": 0,
-  "dev_precision": 1.0,
-  "dev_recall": 0.1,
-  "dev_f1": 0.1818,
-  "dev_sha256": "d393a2131beeef57bf3766b76f29f28325a9961e31a905a92973ba2223d913ef",
+  "dev_precision": 0.0,
+  "dev_recall": 0.0,
+  "dev_f1": 0.0,
+  "dev_sha256": "0b7c025e1f2dbcdc5f0d04bdf9a30c9ffa8f0e4324c77c0816a2761a033584c3",
   "label_limit": "Synthetic AI-authored labels; not independently human-labelled ground truth."
 }

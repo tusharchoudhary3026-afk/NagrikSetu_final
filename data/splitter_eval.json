@@ -1,0 +1,1146 @@
+{
+  "label": "SYNTHETIC; AI-authored; not independently human-labelled",
+  "split_policy": "family-grouped; test family ids frozen in builder",
+  "rows": [
+    {
+      "id": "C-english-01",
+      "family": "compound-01",
+      "split": "dev",
+      "language": "english",
+      "text": "Pothole on the road and Streetlight is not working",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Pothole on the road",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "Streetlight is not working",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-02",
+      "family": "compound-02",
+      "split": "dev",
+      "language": "english",
+      "text": "Streetlight is not working and Garbage is not collected",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Streetlight is not working",
+          "department": "Electricity Dept"
+        },
+        {
+          "text": "Garbage is not collected",
+          "department": "Sanitation Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-03",
+      "family": "compound-03",
+      "split": "dev",
+      "language": "english",
+      "text": "Pothole on the road and The drain is blocked and Garbage is not collected",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Pothole on the road",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "The drain is blocked",
+          "department": "Drainage Dept"
+        },
+        {
+          "text": "Garbage is not collected",
+          "department": "Sanitation Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-04",
+      "family": "compound-04",
+      "split": "dev",
+      "language": "english",
+      "text": "Water supply is not working and Pothole on the road",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Water supply is not working",
+          "department": "Water Supply Dept"
+        },
+        {
+          "text": "Pothole on the road",
+          "department": "Roads Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-05",
+      "family": "compound-05",
+      "split": "test",
+      "language": "english",
+      "text": "Garbage is not collected and Streetlight is not working",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Garbage is not collected",
+          "department": "Sanitation Dept"
+        },
+        {
+          "text": "Streetlight is not working",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-06",
+      "family": "compound-06",
+      "split": "dev",
+      "language": "english",
+      "text": "Pothole on the road and Water supply is not working",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Pothole on the road",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "Water supply is not working",
+          "department": "Water Supply Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-07",
+      "family": "compound-07",
+      "split": "dev",
+      "language": "english",
+      "text": "The drain is blocked and Streetlight is not working",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "The drain is blocked",
+          "department": "Drainage Dept"
+        },
+        {
+          "text": "Streetlight is not working",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-08",
+      "family": "compound-08",
+      "split": "dev",
+      "language": "english",
+      "text": "Garbage is not collected and Water supply is not working",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Garbage is not collected",
+          "department": "Sanitation Dept"
+        },
+        {
+          "text": "Water supply is not working",
+          "department": "Water Supply Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-09",
+      "family": "compound-09",
+      "split": "dev",
+      "language": "english",
+      "text": "Water supply is not working and The drain is blocked",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Water supply is not working",
+          "department": "Water Supply Dept"
+        },
+        {
+          "text": "The drain is blocked",
+          "department": "Drainage Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-10",
+      "family": "compound-10",
+      "split": "test",
+      "language": "english",
+      "text": "Streetlight is not working and The drain is blocked",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Streetlight is not working",
+          "department": "Electricity Dept"
+        },
+        {
+          "text": "The drain is blocked",
+          "department": "Drainage Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-11",
+      "family": "compound-11",
+      "split": "dev",
+      "language": "english",
+      "text": "Pothole on the road and Garbage is not collected",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Pothole on the road",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "Garbage is not collected",
+          "department": "Sanitation Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-12",
+      "family": "compound-12",
+      "split": "test",
+      "language": "english",
+      "text": "Water supply is not working and Streetlight is not working",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Water supply is not working",
+          "department": "Water Supply Dept"
+        },
+        {
+          "text": "Streetlight is not working",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-13",
+      "family": "compound-13",
+      "split": "dev",
+      "language": "english",
+      "text": "The drain is blocked and Pothole on the road",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "The drain is blocked",
+          "department": "Drainage Dept"
+        },
+        {
+          "text": "Pothole on the road",
+          "department": "Roads Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-english-14",
+      "family": "compound-14",
+      "split": "test",
+      "language": "english",
+      "text": "Garbage is not collected and The drain is blocked",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Garbage is not collected",
+          "department": "Sanitation Dept"
+        },
+        {
+          "text": "The drain is blocked",
+          "department": "Drainage Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-english-01",
+      "family": "negative-01",
+      "split": "dev",
+      "language": "english",
+      "text": "Pothole on the road and the road is badly broken",
+      "expected_compound": false,
+      "expected_department": "Roads Dept",
+      "negative_reason": "same road, one broken road incident",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-english-02",
+      "family": "negative-02",
+      "split": "dev",
+      "language": "english",
+      "text": "Streetlight is not working and the light remains off",
+      "expected_compound": false,
+      "expected_department": "Electricity Dept",
+      "negative_reason": "one streetlight outage described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-english-03",
+      "family": "negative-03",
+      "split": "dev",
+      "language": "english",
+      "text": "Garbage is not collected and the waste is still there",
+      "expected_compound": false,
+      "expected_department": "Sanitation Dept",
+      "negative_reason": "same garbage collection failure described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-english-04",
+      "family": "negative-04",
+      "split": "dev",
+      "language": "english",
+      "text": "The drain is blocked and water remains in the drain",
+      "expected_compound": false,
+      "expected_department": "Drainage Dept",
+      "negative_reason": "one blocked drain described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-english-05",
+      "family": "negative-05",
+      "split": "dev",
+      "language": "english",
+      "text": "Water supply is not working and there is still no water",
+      "expected_compound": false,
+      "expected_department": "Water Supply Dept",
+      "negative_reason": "one water supply outage described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-english-06",
+      "family": "negative-06",
+      "split": "test",
+      "language": "english",
+      "text": "Pothole on the road and the road is badly broken",
+      "expected_compound": false,
+      "expected_department": "Roads Dept",
+      "negative_reason": "one pothole with added safety context",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-english-07",
+      "family": "negative-07",
+      "split": "test",
+      "language": "english",
+      "text": "The drain is blocked and water remains in the drain",
+      "expected_compound": false,
+      "expected_department": "Drainage Dept",
+      "negative_reason": "one waterlogging issue on a road",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-english-08",
+      "family": "negative-08",
+      "split": "test",
+      "language": "english",
+      "text": "Pothole on the road and the road is badly broken",
+      "expected_compound": false,
+      "expected_department": "Roads Dept",
+      "negative_reason": "one footpath issue with added context",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-01",
+      "family": "compound-01",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Sadak par gadda hai aur Streetlight band hai",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Sadak par gadda hai",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "Streetlight band hai",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-02",
+      "family": "compound-02",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Streetlight band hai aur Kachra nahi utha",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Streetlight band hai",
+          "department": "Electricity Dept"
+        },
+        {
+          "text": "Kachra nahi utha",
+          "department": "Sanitation Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-03",
+      "family": "compound-03",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Sadak par gadda hai aur Nali block hai aur Kachra nahi utha",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Sadak par gadda hai",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "Nali block hai",
+          "department": "Drainage Dept"
+        },
+        {
+          "text": "Kachra nahi utha",
+          "department": "Sanitation Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-04",
+      "family": "compound-04",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Water supply nahi aa rahi aur Sadak par gadda hai",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Water supply nahi aa rahi",
+          "department": "Water Supply Dept"
+        },
+        {
+          "text": "Sadak par gadda hai",
+          "department": "Roads Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-05",
+      "family": "compound-05",
+      "split": "test",
+      "language": "hinglish",
+      "text": "Kachra nahi utha aur Streetlight band hai",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Kachra nahi utha",
+          "department": "Sanitation Dept"
+        },
+        {
+          "text": "Streetlight band hai",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-06",
+      "family": "compound-06",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Sadak par gadda hai aur Water supply nahi aa rahi",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Sadak par gadda hai",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "Water supply nahi aa rahi",
+          "department": "Water Supply Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-07",
+      "family": "compound-07",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Nali block hai aur Streetlight band hai",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Nali block hai",
+          "department": "Drainage Dept"
+        },
+        {
+          "text": "Streetlight band hai",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-08",
+      "family": "compound-08",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Kachra nahi utha aur Water supply nahi aa rahi",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Kachra nahi utha",
+          "department": "Sanitation Dept"
+        },
+        {
+          "text": "Water supply nahi aa rahi",
+          "department": "Water Supply Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-09",
+      "family": "compound-09",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Water supply nahi aa rahi aur Nali block hai",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Water supply nahi aa rahi",
+          "department": "Water Supply Dept"
+        },
+        {
+          "text": "Nali block hai",
+          "department": "Drainage Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-10",
+      "family": "compound-10",
+      "split": "test",
+      "language": "hinglish",
+      "text": "Streetlight band hai aur Nali block hai",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Streetlight band hai",
+          "department": "Electricity Dept"
+        },
+        {
+          "text": "Nali block hai",
+          "department": "Drainage Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-11",
+      "family": "compound-11",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Sadak par gadda hai aur Kachra nahi utha",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Sadak par gadda hai",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "Kachra nahi utha",
+          "department": "Sanitation Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-12",
+      "family": "compound-12",
+      "split": "test",
+      "language": "hinglish",
+      "text": "Water supply nahi aa rahi aur Streetlight band hai",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Water supply nahi aa rahi",
+          "department": "Water Supply Dept"
+        },
+        {
+          "text": "Streetlight band hai",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-13",
+      "family": "compound-13",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Nali block hai aur Sadak par gadda hai",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Nali block hai",
+          "department": "Drainage Dept"
+        },
+        {
+          "text": "Sadak par gadda hai",
+          "department": "Roads Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hinglish-14",
+      "family": "compound-14",
+      "split": "test",
+      "language": "hinglish",
+      "text": "Kachra nahi utha aur Nali block hai",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "Kachra nahi utha",
+          "department": "Sanitation Dept"
+        },
+        {
+          "text": "Nali block hai",
+          "department": "Drainage Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hinglish-01",
+      "family": "negative-01",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Sadak par gadda hai aur sadak bhi tooti hai",
+      "expected_compound": false,
+      "expected_department": "Roads Dept",
+      "negative_reason": "same road, one broken road incident",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hinglish-02",
+      "family": "negative-02",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Streetlight band hai aur light abhi bhi band hai",
+      "expected_compound": false,
+      "expected_department": "Electricity Dept",
+      "negative_reason": "one streetlight outage described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hinglish-03",
+      "family": "negative-03",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Kachra nahi utha aur kachra abhi bhi pada hai",
+      "expected_compound": false,
+      "expected_department": "Sanitation Dept",
+      "negative_reason": "same garbage collection failure described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hinglish-04",
+      "family": "negative-04",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Nali block hai aur nali ka paani ruka hai",
+      "expected_compound": false,
+      "expected_department": "Drainage Dept",
+      "negative_reason": "one blocked drain described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hinglish-05",
+      "family": "negative-05",
+      "split": "dev",
+      "language": "hinglish",
+      "text": "Water supply nahi aa rahi aur nal mein paani nahi hai",
+      "expected_compound": false,
+      "expected_department": "Water Supply Dept",
+      "negative_reason": "one water supply outage described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hinglish-06",
+      "family": "negative-06",
+      "split": "test",
+      "language": "hinglish",
+      "text": "Sadak par gadda hai aur sadak bhi tooti hai",
+      "expected_compound": false,
+      "expected_department": "Roads Dept",
+      "negative_reason": "one pothole with added safety context",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hinglish-07",
+      "family": "negative-07",
+      "split": "test",
+      "language": "hinglish",
+      "text": "Nali block hai aur nali ka paani ruka hai",
+      "expected_compound": false,
+      "expected_department": "Drainage Dept",
+      "negative_reason": "one waterlogging issue on a road",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hinglish-08",
+      "family": "negative-08",
+      "split": "test",
+      "language": "hinglish",
+      "text": "Sadak par gadda hai aur sadak bhi tooti hai",
+      "expected_compound": false,
+      "expected_department": "Roads Dept",
+      "negative_reason": "one footpath issue with added context",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-01",
+      "family": "compound-01",
+      "split": "dev",
+      "language": "hindi",
+      "text": "सड़क पर गड्ढा है और स्ट्रीटलाइट बंद है",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "सड़क पर गड्ढा है",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "स्ट्रीटलाइट बंद है",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-02",
+      "family": "compound-02",
+      "split": "dev",
+      "language": "hindi",
+      "text": "स्ट्रीटलाइट बंद है और कचरा नहीं उठा",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "स्ट्रीटलाइट बंद है",
+          "department": "Electricity Dept"
+        },
+        {
+          "text": "कचरा नहीं उठा",
+          "department": "Sanitation Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-03",
+      "family": "compound-03",
+      "split": "dev",
+      "language": "hindi",
+      "text": "सड़क पर गड्ढा है और नाली बंद है और कचरा नहीं उठा",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "सड़क पर गड्ढा है",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "नाली बंद है",
+          "department": "Drainage Dept"
+        },
+        {
+          "text": "कचरा नहीं उठा",
+          "department": "Sanitation Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-04",
+      "family": "compound-04",
+      "split": "dev",
+      "language": "hindi",
+      "text": "पानी की सप्लाई नहीं आ रही और सड़क पर गड्ढा है",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "पानी की सप्लाई नहीं आ रही",
+          "department": "Water Supply Dept"
+        },
+        {
+          "text": "सड़क पर गड्ढा है",
+          "department": "Roads Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-05",
+      "family": "compound-05",
+      "split": "test",
+      "language": "hindi",
+      "text": "कचरा नहीं उठा और स्ट्रीटलाइट बंद है",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "कचरा नहीं उठा",
+          "department": "Sanitation Dept"
+        },
+        {
+          "text": "स्ट्रीटलाइट बंद है",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-06",
+      "family": "compound-06",
+      "split": "dev",
+      "language": "hindi",
+      "text": "सड़क पर गड्ढा है और पानी की सप्लाई नहीं आ रही",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "सड़क पर गड्ढा है",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "पानी की सप्लाई नहीं आ रही",
+          "department": "Water Supply Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-07",
+      "family": "compound-07",
+      "split": "dev",
+      "language": "hindi",
+      "text": "नाली बंद है और स्ट्रीटलाइट बंद है",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "नाली बंद है",
+          "department": "Drainage Dept"
+        },
+        {
+          "text": "स्ट्रीटलाइट बंद है",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-08",
+      "family": "compound-08",
+      "split": "dev",
+      "language": "hindi",
+      "text": "कचरा नहीं उठा और पानी की सप्लाई नहीं आ रही",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "कचरा नहीं उठा",
+          "department": "Sanitation Dept"
+        },
+        {
+          "text": "पानी की सप्लाई नहीं आ रही",
+          "department": "Water Supply Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-09",
+      "family": "compound-09",
+      "split": "dev",
+      "language": "hindi",
+      "text": "पानी की सप्लाई नहीं आ रही और नाली बंद है",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "पानी की सप्लाई नहीं आ रही",
+          "department": "Water Supply Dept"
+        },
+        {
+          "text": "नाली बंद है",
+          "department": "Drainage Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-10",
+      "family": "compound-10",
+      "split": "test",
+      "language": "hindi",
+      "text": "स्ट्रीटलाइट बंद है और नाली बंद है",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "स्ट्रीटलाइट बंद है",
+          "department": "Electricity Dept"
+        },
+        {
+          "text": "नाली बंद है",
+          "department": "Drainage Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-11",
+      "family": "compound-11",
+      "split": "dev",
+      "language": "hindi",
+      "text": "सड़क पर गड्ढा है और कचरा नहीं उठा",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "सड़क पर गड्ढा है",
+          "department": "Roads Dept"
+        },
+        {
+          "text": "कचरा नहीं उठा",
+          "department": "Sanitation Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-12",
+      "family": "compound-12",
+      "split": "test",
+      "language": "hindi",
+      "text": "पानी की सप्लाई नहीं आ रही और स्ट्रीटलाइट बंद है",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "पानी की सप्लाई नहीं आ रही",
+          "department": "Water Supply Dept"
+        },
+        {
+          "text": "स्ट्रीटलाइट बंद है",
+          "department": "Electricity Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-13",
+      "family": "compound-13",
+      "split": "dev",
+      "language": "hindi",
+      "text": "नाली बंद है और सड़क पर गड्ढा है",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "नाली बंद है",
+          "department": "Drainage Dept"
+        },
+        {
+          "text": "सड़क पर गड्ढा है",
+          "department": "Roads Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "C-hindi-14",
+      "family": "compound-14",
+      "split": "test",
+      "language": "hindi",
+      "text": "कचरा नहीं उठा और नाली बंद है",
+      "expected_compound": true,
+      "expected_parts": [
+        {
+          "text": "कचरा नहीं उठा",
+          "department": "Sanitation Dept"
+        },
+        {
+          "text": "नाली बंद है",
+          "department": "Drainage Dept"
+        }
+      ],
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hindi-01",
+      "family": "negative-01",
+      "split": "dev",
+      "language": "hindi",
+      "text": "सड़क पर गड्ढा है और सड़क भी टूटी है",
+      "expected_compound": false,
+      "expected_department": "Roads Dept",
+      "negative_reason": "same road, one broken road incident",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hindi-02",
+      "family": "negative-02",
+      "split": "dev",
+      "language": "hindi",
+      "text": "स्ट्रीटलाइट बंद है और लाइट अभी भी बंद है",
+      "expected_compound": false,
+      "expected_department": "Electricity Dept",
+      "negative_reason": "one streetlight outage described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hindi-03",
+      "family": "negative-03",
+      "split": "dev",
+      "language": "hindi",
+      "text": "कचरा नहीं उठा और कचरा अभी भी पड़ा है",
+      "expected_compound": false,
+      "expected_department": "Sanitation Dept",
+      "negative_reason": "same garbage collection failure described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hindi-04",
+      "family": "negative-04",
+      "split": "dev",
+      "language": "hindi",
+      "text": "नाली बंद है और नाली का पानी रुका है",
+      "expected_compound": false,
+      "expected_department": "Drainage Dept",
+      "negative_reason": "one blocked drain described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hindi-05",
+      "family": "negative-05",
+      "split": "dev",
+      "language": "hindi",
+      "text": "पानी की सप्लाई नहीं आ रही और नल में पानी नहीं है",
+      "expected_compound": false,
+      "expected_department": "Water Supply Dept",
+      "negative_reason": "one water supply outage described twice",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hindi-06",
+      "family": "negative-06",
+      "split": "test",
+      "language": "hindi",
+      "text": "सड़क पर गड्ढा है और सड़क भी टूटी है",
+      "expected_compound": false,
+      "expected_department": "Roads Dept",
+      "negative_reason": "one pothole with added safety context",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hindi-07",
+      "family": "negative-07",
+      "split": "test",
+      "language": "hindi",
+      "text": "नाली बंद है और नाली का पानी रुका है",
+      "expected_compound": false,
+      "expected_department": "Drainage Dept",
+      "negative_reason": "one waterlogging issue on a road",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    },
+    {
+      "id": "N-hindi-08",
+      "family": "negative-08",
+      "split": "test",
+      "language": "hindi",
+      "text": "सड़क पर गड्ढा है और सड़क भी टूटी है",
+      "expected_compound": false,
+      "expected_department": "Roads Dept",
+      "negative_reason": "one footpath issue with added context",
+      "labeller": "AI_AUTHORED_SYNTHETIC",
+      "tag": "SYNTHETIC"
+    }
+  ]
+}
