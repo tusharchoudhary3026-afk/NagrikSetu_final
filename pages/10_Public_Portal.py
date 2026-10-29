@@ -10,7 +10,7 @@ from core import intake, router_baseline, splitter
 from core.config import SIM_LABEL, feature_enabled
 from core.db import init_db, insert_public_submission
 from core.intake import normalize_location
-from core.portal import list_own_complaints
+from core.portal import list_own_complaints, list_own_split_children
 from core.privacy import mask_text
 from core.safety import flag_safety
 from core.security import attachment_encryption_status
@@ -19,6 +19,7 @@ from core.geo import known_area_for_location, partial_geography_names
 from core.geo_ui import render_geography_picker
 from core.speech import validate_transcript_submission
 from core.speech_component import speech_input
+from core.suggestions import selected_department
 
 
 class _StoredUpload:
@@ -47,7 +48,9 @@ with tab_submit:
         st.caption("Type your complaint or describe it by voice. Please check names, locations and numbers.")
         consent = st.checkbox("I understand browser speech recognition may send audio to its provider; NagrikSetu does not store audio.",
                               key="public-speech-consent")
-        speech = speech_input(enabled=consent, key="public-complaint-speech", default=None)
+        with st.expander("Voice input (TRY) · optional", expanded=False):
+            st.caption("If voice input is unavailable, type your complaint in the box below. Speech is never submitted automatically.")
+            speech = speech_input(enabled=consent, key="public-complaint-speech", default=None)
         if speech and speech.get("id") != st.session_state.get("public_last_speech_id"):
             transcript = speech.get("transcript", "")
             if transcript:
@@ -74,6 +77,15 @@ with tab_submit:
             st.info("Photo evidence is disabled by configuration.")
         submitted = st.form_submit_button("Review extracted details", type="primary", width="stretch")
     if submitted:
+        # A new intake must start with its own extracted values. Streamlit keeps
+        # keyed widgets across reruns, which otherwise carries an old category
+        # or location into the next complaint preview.
+        st.session_state.pop("public_intake_preview", None)
+        for key in ("public-preview-issue", "public-preview-location", "public-preview-action",
+                    "public-preview-confirmed"):
+            st.session_state.pop(key, None)
+        for key in [key for key in st.session_state if key.startswith("public-preview-split-issue-")]:
+            st.session_state.pop(key, None)
         try:
             text = validate_transcript_submission(text, speech_used, transcript_confirmed)
             if attachments and not encryption["configured"]:
@@ -124,7 +136,34 @@ with tab_submit:
         action_options = ["unspecified", "repair", "clean", "clear", "inspect"]
         if "public-preview-action" not in st.session_state:
             st.session_state["public-preview-action"] = rec["requested_action"] or "unspecified"
-        issue = st.selectbox("Issue category", issue_options, key="public-preview-issue")
+        if preview["split"]["is_compound"]:
+            issue = "multiple issues"
+            st.subheader("Possible separate issues · proposal only")
+            st.caption("These are grounded in your text. Staff must confirm any split; nothing is split automatically.")
+            for index, part in enumerate(preview["split"]["parts"]):
+                with st.container(border=True):
+                    st.markdown(f"**Possible issue {index + 1}**")
+                    st.write(part["text"])
+                    st.caption(f"Original text span: characters {part['start']}–{part['end']}")
+                    key = f"public-preview-split-issue-{index}"
+                    if key not in st.session_state:
+                        st.session_state[key] = part["issue"] if part["issue"] in issue_options else "unknown"
+                    st.selectbox("Issue category", issue_options, key=key)
+                    route = part["suggestion"]
+                    if route["abstained"]:
+                        if part.get("ownership_conflicts"):
+                            st.warning("Possible ownership conflict · manual staff review required; no department is selected automatically.")
+                        else:
+                            st.warning("No supported department suggestion for this issue; staff review is needed.")
+                    else:
+                        dept = selected_department(route)
+                        evidence = route["evidence"].get(dept, [])
+                        st.write(f"Department suggestion: **{dept}** · evidence in this text: {evidence}")
+                    for overlap in part.get("ownership_conflicts", []):
+                        st.warning(f"Possible ownership overlap: {overlap['owner']} / {overlap['overlap_owner']} · "
+                                   f"{overlap['verification']} · {overlap['source']}")
+        else:
+            issue = st.selectbox("Issue category", issue_options, key="public-preview-issue")
         corrected_location = st.text_input("Street or nearby landmark", key="public-preview-location",
                                            help="Leave blank if you do not know the location.")
         action = st.selectbox("Requested action", action_options, key="public-preview-action")
@@ -133,15 +172,20 @@ with tab_submit:
         question = intake.clarification_question(rec)
         if question:
             st.info(f"One helpful detail for staff: {question}")
-        if preview["route"]["abstained"]:
+        if not preview["split"]["is_compound"] and preview["route"]["abstained"]:
             st.warning("No supported route was found. This case will wait in the human review queue.")
-        else:
+        elif not preview["split"]["is_compound"]:
             st.markdown("**Routing suggestions · recommendation only**")
             for suggestion in preview["route"]["top3"]:
                 evidence = preview["route"]["evidence"].get(suggestion["dept"], [])
                 st.write(f"{suggestion['dept']} · evidence: {evidence}")
-        if preview["split"]["is_compound"]:
-            st.info("This may contain more than one issue. Staff will review the proposed split; no automatic split occurs.")
+        elif preview["split"]["parts"]:
+            st.info("The complete complaint stays unassigned until staff confirms or edits the proposed split. Per-issue routes are recommendations only.")
+        elif not preview["split"]["parts"]:
+            st.info(preview["split"]["note"] + ". The original complaint will remain intact for staff review.")
+            for overlap in preview["split"].get("ownership_conflicts", []):
+                st.warning(f"Possible ownership overlap: {overlap['owner']} / {overlap['overlap_owner']} · "
+                           f"{overlap['verification']} · {overlap['source']}")
         if preview["safety"]["flagged"]:
             st.warning("This report matches a safety-review rule and will be shown to staff for human attention.")
         confirmed = st.checkbox("I reviewed the extracted details and confirm they are ready to submit.",
@@ -153,7 +197,8 @@ with tab_submit:
             else:
                 try:
                     final_rec = dict(rec)
-                    final_rec["issue"] = None if issue == "unknown" else issue
+                    final_rec["issue"] = ("multiple issues" if preview["split"]["is_compound"]
+                                           else None if issue == "unknown" else issue)
                     final_rec["location"] = (corrected_location if corrected_location.strip() else
                                               (rec.get("area_name") if rec.get("area_code") else "unknown"))
                     final_rec["location_normalized"] = normalize_location(final_rec["location"])
@@ -173,8 +218,16 @@ with tab_submit:
                             edits[field] = {"extracted": before, "confirmed": after}
                     final_rec["extraction_corrections"] = edits
                     final_rec["case_id"] = f"CASE-{uuid.uuid4().hex[:12].upper()}"
-                    complaint_id = insert_public_submission(final_rec, preview["route"],
-                                                            submitted_by=user["id"])
+                    split_proposal = None
+                    if preview["split"]["is_compound"]:
+                        split_proposal = dict(preview["split"])
+                        split_proposal["parts"] = [dict(part, issue=st.session_state.get(
+                            f"public-preview-split-issue-{index}", part["issue"]))
+                            for index, part in enumerate(preview["split"]["parts"])]
+                    submission_route = splitter.parent_route_for_submission(preview["route"], split_proposal)
+                    complaint_id = insert_public_submission(final_rec, submission_route,
+                                                            submitted_by=user["id"],
+                                                            split_proposal=split_proposal)
                     attachment_warning = None
                     if preview["uploads"]:
                         try:
@@ -198,6 +251,8 @@ with tab_submit:
                     st.session_state.pop("public-preview-issue", None)
                     st.session_state.pop("public-preview-location", None)
                     st.session_state.pop("public-preview-action", None)
+                    for key in [key for key in st.session_state if key.startswith("public-preview-split-issue-")]:
+                        st.session_state.pop(key, None)
                     st.rerun()
                 except (ValueError, PermissionError) as exc:
                     st.error(str(exc))
@@ -210,6 +265,8 @@ with tab_submit:
             st.session_state.pop("public-preview-issue", None)
             st.session_state.pop("public-preview-location", None)
             st.session_state.pop("public-preview-action", None)
+            for key in [key for key in st.session_state if key.startswith("public-preview-split-issue-")]:
+                st.session_state.pop(key, None)
             st.rerun()
 
     last = st.session_state.get("last_public_submission")
@@ -259,6 +316,20 @@ with tab_track:
             if row.get("open_requests"):
                 status = "Review requested"
             st.caption(f"Status: {status}")
+            if row.get("split_status"):
+                st.caption(f"Split review: {row['split_status'].replace('_', ' ')} · staff confirmation required")
+                if row.get("split_status") == "proposed" and row.get("split_proposal_json"):
+                    try:
+                        proposal_parts = json.loads(row["split_proposal_json"]).get("parts", [])
+                    except (TypeError, json.JSONDecodeError):
+                        proposal_parts = []
+                    for part in proposal_parts:
+                        dept = selected_department(part.get("suggestion"))
+                        st.write(f"Possible issue: {part.get('text', '')} · {part.get('issue', 'unknown')} · "
+                                 f"{dept or 'Human review needed'}")
+                for child in list_own_split_children(user["id"], row["id"]):
+                    state = "active" if child["is_active"] else "merged back"
+                    st.write(f"Sub-issue ({state}): {child['original_text']} · {child.get('issue') or 'unknown'}")
             if row.get("location") and row["location"] != "unknown":
                 st.caption(f"Location: {row['location']}")
             if row.get("state_name") or row.get("city_name") or row.get("area_name"):

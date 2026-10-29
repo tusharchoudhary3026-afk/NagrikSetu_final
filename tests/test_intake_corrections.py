@@ -19,20 +19,17 @@ def _case(db):
         "evidence": {"Electricity Dept": ["streetlight"]}, "confidence": 0.9, "abstained": False})
 
 
-def _approve_gole(user, admin):
-    from core.geo import approve_area_request, configure_staff_location
+def _select_gole(user):
+    from core.geo import configure_staff_location
 
-    request = configure_staff_location(user, "mp", "mp-gwalior", "mp-gwalior-gole-ka-mandir",
-                                       "Gole Ka Mandir service assignment")
-    approve_area_request(request["request_id"], admin["email"], "Synthetic test grant")
+    configure_staff_location(user, "mp", "mp-gwalior", "mp-gwalior-gole-ka-mandir")
 
 
 def test_reviewer_corrects_extracted_fields_in_staff_ui_with_append_only_provenance(db, staff_user):
     from core.db import fetch_all
 
     reviewer = staff_user("reviewer")
-    admin = staff_user("reviewer")
-    _approve_gole(reviewer, admin)
+    _select_gole(reviewer)
     complaint_id = _case(db)
     app = AppTest.from_file(Path(__file__).resolve().parent.parent / "app.py", default_timeout=30)
     app.session_state["authenticated_user"] = reviewer
@@ -64,8 +61,7 @@ def test_extraction_correction_requires_reason_and_review_permission(db, staff_u
     from core.intake_corrections import correct_intake_fields
 
     reviewer = staff_user("reviewer")
-    admin = staff_user("reviewer")
-    _approve_gole(reviewer, admin)
+    _select_gole(reviewer)
     complaint_id = _case(db)
     with pytest.raises(ValueError, match="correction reason"):
         correct_intake_fields(reviewer, complaint_id, {"issue": "Road damage"}, "", "wrong_category")

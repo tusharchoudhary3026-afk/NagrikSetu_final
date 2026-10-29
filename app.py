@@ -11,7 +11,6 @@ from core.db import init_db
 from core.config import feature_enabled
 from core.geo_ui import render_geography_picker
 from core.geo import configure_staff_location, sync_allowlisted_assignments
-from core.geo import is_geography_admin
 from core.password_policy import score_password
 from core.ui import apply_demo_style, render_hero, render_userbar
 
@@ -70,6 +69,7 @@ if user and user.get("role") == "public":
         _page("pages/1_Intake.py", "Complain here", "📝", visibility="hidden"),
         _page("pages/6_Inbox.py", "Inbox", "📥", visibility="hidden"),
         _page("pages/2_Review.py", "Review", "🔎", visibility="hidden"),
+        _page("pages/9_Duplicates.py", "Duplicates", "🔗", visibility="hidden"),
         _page("pages/3_Challenge.py", "Challenge / request queue", "⚖️", visibility="hidden"),
         _page("pages/11_Request_Review_Queue.py", "Request review queue", "📨", visibility="hidden"),
         _page("pages/7_Replay.py", "Case replay", "🎞️", visibility="hidden"),
@@ -97,6 +97,7 @@ elif user:
         ],
         "Review": [
             _page("pages/2_Review.py", "Review", "🔎", visibility="visible" if can_review else "hidden"),
+            _page("pages/9_Duplicates.py", "Duplicates", "🔗", visibility="visible" if can_review else "hidden"),
             _page("pages/3_Challenge.py", "Challenge", "⚖️", visibility="visible" if can_review else "hidden"),
             _page("pages/11_Request_Review_Queue.py", "Request review queue", "📨", visibility="visible" if can_review else "hidden"),
             _page("pages/7_Replay.py", "Case replay", "🎞️", visibility="visible" if can_audit else "hidden"),
@@ -106,8 +107,7 @@ elif user:
             _page("pages/5_Relabel.py", "Relabel", "🏷️", visibility="visible" if can_review else "hidden"),
             _page("pages/9_Security.py", "Security status", "🔐",
                   visibility="visible" if verify_permission(user["role"], "can_view_security") else "hidden"),
-            _page("pages/12_Area_Access_Admin.py", "Area access requests", "📍",
-                  visibility="visible" if can_review and is_geography_admin(user.get("email", "")) else "hidden"),
+            _page("pages/12_Area_Access_Admin.py", "Area access requests", "📍", visibility="hidden"),
             _page("pages/13_Hotspots.py", "Hotspots", "📈",
                   visibility="visible" if feature_enabled("hotspots") and verify_permission(user["role"], "can_view_hotspots") else "hidden"),
             _page("pages/14_Correction_Dataset.py", "Correction dataset", "🧪",
@@ -129,6 +129,7 @@ else:
         _page("pages/1_Intake.py", "Complain here", "📝", visibility="hidden"),
         _page("pages/6_Inbox.py", "Inbox", "📥", visibility="hidden"),
         _page("pages/2_Review.py", "Review", "🔎", visibility="hidden"),
+        _page("pages/9_Duplicates.py", "Duplicates", "🔗", visibility="hidden"),
         _page("pages/3_Challenge.py", "Challenge / request queue", "⚖️", visibility="hidden"),
         _page("pages/11_Request_Review_Queue.py", "Request review queue", "📨", visibility="hidden"),
         _page("pages/7_Replay.py", "Case replay", "🎞️", visibility="hidden"),

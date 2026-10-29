@@ -1,4 +1,4 @@
-# Acceptance test run 2026-10-29 18:06
+# Acceptance test run 2026-10-30 00:20
 
 | Test | Outcome |
 |---|---|
@@ -16,7 +16,7 @@
 | test_opening_protected_file_page_without_session_shows_sign_in_link | PASSED |
 | test_reviewer_can_open_the_role_filtered_navigation | PASSED |
 | test_demo_staff_home_shows_preapproved_city_assignment_without_warning | PASSED |
-| test_non_demo_staff_area_request_stays_pending_until_admin_approval | PASSED |
+| test_non_demo_staff_can_self_select_area_without_admin_approval | PASSED |
 | test_each_demo_staff_role_sees_public_case_in_the_streamlit_staff_view | PASSED |
 | test_every_page_starts_headlessly_with_a_permitted_session | PASSED |
 | test_full_dataframe_fit_uses_training_split_only | PASSED |
@@ -89,6 +89,26 @@
 | test_every_page_boots_for_each_staff_role[operator-operator03@staff.nagriksetu-demo.example] | PASSED |
 | test_every_page_boots_for_each_staff_role[reviewer-reviewer04@staff.nagriksetu-demo.example] | PASSED |
 | test_every_page_boots_for_each_staff_role[auditor-auditor04@staff.nagriksetu-demo.example] | PASSED |
+| test_reported_compound_input_proposes_two_grounded_spans_in_order | PASSED |
+| test_hinglish_or_complaint_proposes_road_and_streetlight_parts | PASSED |
+| test_new_public_preview_does_not_keep_the_previous_category_or_location | PASSED |
+| test_required_multilingual_and_list_split_cases | PASSED |
+| test_same_owner_unclear_and_overlap_inputs_are_not_split | PASSED |
+| test_single_word_also_does_not_split_and_vague_context_attaches_to_issue | PASSED |
+| test_ampersand_and_hinglish_saath_mein_connectors_are_supported_without_splitting_also_alone | PASSED |
+| test_public_proposal_persists_and_reviewer_confirms_linked_children | PASSED |
+| test_citizen_preview_and_staff_review_show_proposal_before_confirmation | PASSED |
+| test_voice_ready_message_uses_streamlit_component_protocol | PASSED |
+| test_split_proposal_schema_adds_to_legacy_copy_idempotently | PASSED |
+| test_splitter_eval_is_synthetic_family_grouped_and_has_required_sample_counts | PASSED |
+| test_grounded_evidence_only_returns_shared_source_terms | PASSED |
+| test_tfidf_evidence_and_top_level_guarded_candidates_remain_visible | PASSED |
+| test_compare_pair_unknown_location_has_no_location_bonus_and_old_time_is_guarded | PASSED |
+| test_confirmation_and_rejection_append_reasoned_events_for_both_cases | PASSED |
+| test_public_user_is_blocked_from_duplicate_page | PASSED |
+| test_reviewer_can_open_duplicate_page | PASSED |
+| test_transfer_pattern_summary_reports_case_denominators | PASSED |
+| test_duplicate_decision_reason_is_required_by_database_trigger | PASSED |
 | test_email_password_hash_and_verification | PASSED |
 | test_email_login_locks_after_five_failed_attempts | PASSED |
 | test_staff_role_cannot_be_requested_from_public_registration | PASSED |
@@ -96,7 +116,7 @@
 | test_public_account_cannot_pass_government_role_check | PASSED |
 | test_public_can_open_portal_but_not_government_page | PASSED |
 | test_public_portal_returns_only_the_owner_cases | PASSED |
-| test_public_submission_is_atomic_and_visible_after_area_approval | PASSED |
+| test_public_submission_is_atomic_and_visible_after_staff_selects_area | PASSED |
 | test_public_form_resolves_normalized_english_and_hindi_area_aliases_without_rewriting_location | PASSED |
 | test_citizen_confirms_and_can_correct_extracted_fields_before_any_database_write | PASSED |
 | test_public_submission_rolls_back_if_suggestion_or_ledger_write_fails | PASSED |
@@ -132,6 +152,10 @@
 | test_legacy_ledger_rows_are_backfilled_once_and_verified | PASSED |
 | test_ledger_integrity_verification_reports_first_tampered_event | PASSED |
 | test_ledger_integrity_is_auditor_only_and_visible_in_staff_page | PASSED |
+| test_damaged_pipeline_suggests_both_owners_and_abstains_for_manual_review | PASSED |
+| test_pipe_ambiguity_cues_are_narrow_and_do_not_flag_ordinary_water_reports | PASSED |
+| test_ambiguous_pipe_and_clear_garbage_issue_stay_compound_with_conflict_manual_review | PASSED |
+| test_conflicted_case_is_visible_in_staff_manual_queue | PASSED |
 | test_reviewer_saves_versioned_rubric_and_rules_drive_attention_flags | PASSED |
 | test_rubric_version_requires_permission_reason_and_valid_rules | PASSED |
 | test_operator_dashboard_is_department_filtered_and_service_rejects_cross_department | PASSED |

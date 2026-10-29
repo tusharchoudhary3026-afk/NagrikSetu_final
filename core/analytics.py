@@ -5,6 +5,7 @@ from .config import REASON_CODES, SIM_LABEL
 from .db import fetch_all
 from .geo import scoped_ids_clause, require_complaint_area_access
 from .geo import STAFF_ROLES
+from .ownership import detect_bounce, repeat_reassignment
 
 
 def get_reassignment_breakdown(actor_user: dict | None = None):
@@ -49,6 +50,34 @@ def get_case_reassignment_timeline(complaint_id: int, actor_user: dict | None = 
         "l.final_dept,l.reason,l.reason_code,l.details,l.created_at "
         "FROM ledger l JOIN complaints c ON c.id=l.complaint_id "
         "WHERE c.case_id=? ORDER BY l.id ASC", (cases[0]["case_id"],))
+
+
+def get_transfer_pattern_summary(actor_user: dict | None = None):
+    """Count cases with transfer paths matching review flags; this is not blame attribution."""
+    where = "c.is_active=1 AND c.parent_id IS NULL"
+    params = []
+    if actor_user and actor_user.get("role") in STAFF_ROLES:
+        clause, params = scoped_ids_clause(actor_user, "c.id", include_unassigned=True)
+        where += f" AND {clause}"
+    rows = fetch_all(
+        "SELECT c.case_id,l.suggested_dept,l.final_dept,l.event_type FROM complaints c "
+        "LEFT JOIN ledger l ON l.complaint_id=c.id WHERE " + where + " ORDER BY c.id,l.id", params)
+    histories = {}
+    for row in rows:
+        history = histories.setdefault(row["case_id"], [])
+        if row["event_type"] == "transfer":
+            history.append(row)
+    transfer_cases = {case: history for case, history in histories.items() if history}
+    bounce = sum(bool(detect_bounce(history)) for history in transfer_cases.values())
+    repeated = sum(bool(repeat_reassignment(history)) for history in transfer_cases.values())
+    total_cases = len(histories)
+    return {
+        "status_label": SIM_LABEL,
+        "total_cases": total_cases,
+        "cases_with_transfers": len(transfer_cases),
+        "A_to_B_to_A": {"count": bounce, "denominator": len(transfer_cases)},
+        "repeat_reassignment": {"count": repeated, "denominator": len(transfer_cases)},
+    }
 
 
 def detect_emerging_hotspots(min_count: int = 3, window_days: int = 7,

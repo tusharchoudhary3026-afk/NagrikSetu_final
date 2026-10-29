@@ -1,5 +1,7 @@
 # QA and workflow fixes — 2026-10-28
 
+| Duplicate and ownership review gaps | Candidate review was limited to a compact panel; signal details and case-level transfer-pattern counts were incomplete | Added a scoped Duplicates staff page, guarded TF-IDF/issue/location evidence, append-only confirm/reject/unlink events, inbox/replay/evaluation surfaces, explicit unverified ownership-rule wording, and transfer-pattern summary with denominators | `tests/test_duplicates.py` plus acceptance/full-suite runs recorded after verification |
+
 | Symptom | Root cause | Change | Verification |
 |---|---|---|---|
 | Location extraction included leading “the”, generic “road”, and missed Devanagari ward/landmark forms | English-only patterns and no generic-location filter | Tightened location parsing, removed leading articles, rejected road-only guesses, added Hindi/landmark patterns | `test_intake_strips_articles_and_rejects_generic_road_as_location`; `test_intake_extracts_devanagari_ward_and_landmark` |

@@ -2,9 +2,11 @@
 
 This report compares the supplied workflow PDFs with the current working tree. The PDFs define planned statuses and acceptance behavior; the code and test runs below determine what is actually built. `docs/AUDIT.md` contains the older item-by-item matrix for requirements 1–108. This report adds the current architecture, Engine 11–15 coverage, current verification and fixes from this audit.
 
+**Access-policy update:** the later same-day staff self-selection fix supersedes this report's original statement that ordinary staff must wait for geography-admin approval. See `STAFF_AREA_SELF_SELECTION_2026-10-29.md`.
+
 ## Workflow summary
 
-NyayaFlow (the application title and repository README also use “NagrikSetu”) is a human-reviewed grievance intake and routing prototype. A complaint can be submitted in English, Hindi or Hinglish; deterministic code extracts an issue and any supported location, proposes a department or abstains, and records a human decision history. Staff access is scoped by role, department and approved geography. Split complaints and duplicate incident links keep original complaint records. Demo records, geography and evaluation labels are synthetic. The three exact synthetic demo accounts can receive a city-wide Gwalior grant only when both demo flags are enabled; ordinary staff require geography-admin approval.
+NyayaFlow (the application title and repository README also use “NagrikSetu”) is a human-reviewed grievance intake and routing prototype. A complaint can be submitted in English, Hindi or Hinglish; deterministic code extracts an issue and any supported location, proposes a department or abstains, and records a human decision history. Staff access is scoped by role, department and selected geography. Split complaints and duplicate incident links keep original complaint records. Demo records, geography and evaluation labels are synthetic. The three exact synthetic demo accounts can receive an optional city-wide Gwalior grant when both demo flags are enabled; other staff select their own service areas.
 
 The workflow PDFs describe status as intent: BUILD means the feature should work end to end, TRY is experimental, MOCK is simulated, ROADMAP is not implemented, and REMOVED is explicitly out of scope. A document status alone is not evidence of implementation.
 

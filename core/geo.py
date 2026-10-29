@@ -200,24 +200,27 @@ def _append_event(user_id, state_code, city_code, area_code, event_type, actor_e
         conn.close()
 
 
-def configure_staff_location(user: dict, state_code: str, city_code: str, area_code: str,
-                             reason: str = "Staff requested an area assignment."):
-    """Sync exact allowlist grants; otherwise create an auditable admin-review request."""
+def configure_staff_location(user: dict, state_code: str, city_code: str, area_code: str):
+    """Activate a staff-selected area immediately; no geography-admin request is needed."""
     if not user or user.get("role") not in STAFF_ROLES:
         raise PermissionError("Only an authenticated staff account can configure a staff area.")
     _verified_staff(user.get("id"), user.get("email"))
     names = geography_names(state_code, city_code, area_code)
     sync_allowlisted_assignments(user["id"], user["email"])
-    existing = staff_area_scope(user["id"])
-    if any((item["state_code"], item["city_code"], item["area_code"]) ==
-           (state_code, city_code, area_code) for item in existing):
-        return {"status": "approved", **names}
-    latest = _latest_event(user["id"], state_code, city_code, area_code)
-    if latest and latest["event_type"] == "requested":
-        return {"status": "pending", **names}
-    request_id = request_area_assignment(user["id"], state_code, city_code, area_code,
-                                         user["email"], reason=reason)
-    return {"status": "pending", "request_id": request_id, **names}
+    conn = get_conn()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO staff_selected_areas(user_id,state_code,city_code,area_code,actor_email) "
+            "VALUES(?,?,?,?,?)",
+            (int(user["id"]), state_code, city_code, area_code, user["email"].strip().casefold()),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+    return {"status": "selected", **names}
 
 
 def staff_location_snapshot(user: dict) -> dict:
@@ -264,7 +267,7 @@ def sync_allowlisted_assignments(user_id: int, email: str) -> int:
 
 
 def staff_area_scope(user_id: int) -> list[dict]:
-    """Return only areas whose most recent assignment event is an approval."""
+    """Return admin-approved areas plus areas explicitly selected by this staff user."""
     rows = fetch_all(
         "SELECT e.state_code,e.city_code,e.area_code,e.actor_email,e.reason,e.created_at,u.email,u.role "
         "FROM government_area_events e JOIN users u ON u.id=e.user_id "
@@ -284,6 +287,18 @@ def staff_area_scope(user_id: int) -> list[dict]:
         else:
             names = geography_names(row["state_code"], row["city_code"], row["area_code"])
         row.update({key: names[key] for key in ("state_name", "city_name", "area_name")})
+    selected_rows = fetch_all(
+        "SELECT s.state_code,s.city_code,s.area_code,s.actor_email,'Self-selected by staff' AS reason,"
+        "s.selected_at AS created_at,u.email,u.role FROM staff_selected_areas s "
+        "JOIN users u ON u.id=s.user_id WHERE s.user_id=? ORDER BY s.state_code,s.city_code,s.area_code",
+        (int(user_id),))
+    existing = {(row["state_code"], row["city_code"], row["area_code"]) for row in rows}
+    for row in selected_rows:
+        key = (row["state_code"], row["city_code"], row["area_code"])
+        if key in existing:
+            continue
+        row.update(geography_names(*key))
+        rows.append(row)
     return rows
 
 

@@ -64,7 +64,7 @@ def test_demo_staff_home_shows_preapproved_city_assignment_without_warning(monke
     assert staff_location_snapshot(account)["assigned"][0]["area_name"] == "All areas (city-wide)"
 
 
-def test_non_demo_staff_area_request_stays_pending_until_admin_approval(db):
+def test_non_demo_staff_can_self_select_area_without_admin_approval(db):
     account = _staff_account("browse-area@staff.example.test", "Browse Staff", "reviewer")
     from core.db import insert_public_submission
     from core.geo import staff_location_snapshot
@@ -83,19 +83,18 @@ def test_non_demo_staff_area_request_stays_pending_until_admin_approval(db):
     app.session_state["authenticated_user"] = account
     app.run()
     assert not app.exception
-    assert any("No service area is verified" in item.value for item in app.warning)
-    app.selectbox(key="staff-first-area-request-state").select_index(0).run()
-    app.selectbox(key="staff-first-area-request-city-mp").select_index(0).run()
-    app.selectbox(key="staff-first-area-request-area-mp-gwalior").select_index(1).run()
-    app.text_input(key="staff-first-area-request-reason").set_value("Assigned area for staff review").run()
-    next(item for item in app.button if item.label == "Submit area access request").click().run()
+    assert any("Select a service area below" in item.value for item in app.info)
+    app.selectbox(key="staff-area-select-state").select_index(0).run()
+    app.selectbox(key="staff-area-select-city-mp").select_index(0).run()
+    app.selectbox(key="staff-area-select-area-mp-gwalior").select_index(1).run()
+    next(item for item in app.button if item.label == "Show complaints from this location").click().run()
 
     assert not app.exception
-    assert any("Area request pending verification" in item.value for item in app.info)
-    assert staff_location_snapshot(account)["assigned"] == []
-    assert staff_location_snapshot(account)["pending"]["area_code"] == "mp-gwalior-gole-ka-mandir"
-    assert list_staff_cases(account) == []
-    assert not any("Case review · CASE-SELF-SELECT-AREA" in item.value for item in app.subheader)
+    assert any(row["area_code"] == "mp-gwalior-gole-ka-mandir"
+               for row in staff_location_snapshot(account)["assigned"])
+    assert staff_location_snapshot(account)["pending"] is None
+    assert [row["case_id"] for row in list_staff_cases(account)] == ["CASE-SELF-SELECT-AREA"]
+    assert any("CASE-SELF-SELECT-AREA" in item.value for item in app.subheader)
 
 
 def test_each_demo_staff_role_sees_public_case_in_the_streamlit_staff_view(monkeypatch, db):

@@ -55,9 +55,11 @@ else:
         except ValueError as exc:
             st.warning(str(exc))
 
-ICON = {"suggested": "🤖", "accept": "✅", "edit": "✏️", "clarify": "❓", "escalate": "⬆️",
+ICON = {"suggested": "🤖", "split_proposed": "✂️", "split_edited": "✏️",
+        "accept": "✅", "edit": "✏️", "clarify": "❓", "escalate": "⬆️",
         "transfer": "↔️", "challenge": "⚖️", "challenge_resolved": "🔒", "split_confirmed": "✂️",
-        "split_merged_back": "🔗", "duplicate_linked": "🔗", "duplicate_unlinked": "↩️",
+        "split_merged_back": "🔗", "duplicate_linked": "🔗", "duplicate_confirmed": "🔗",
+        "duplicate_rejected": "🚫", "duplicate_unlinked": "↩️",
         "correction_verified": "🏷️"}
 h = history(pick["id"], actor_user=user)
 timeline = get_case_reassignment_timeline(pick["id"], actor_user=user)

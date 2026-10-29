@@ -18,6 +18,8 @@ def list_own_complaints(user_id: int) -> list[dict]:
         ", (SELECT h.resolution FROM challenges h WHERE h.complaint_id=c.id ORDER BY h.id DESC LIMIT 1) AS latest_review_resolution "
         ", (SELECT h.reason_category FROM challenges h WHERE h.complaint_id=c.id ORDER BY h.id DESC LIMIT 1) AS latest_review_reason_category "
         ", (SELECT h.created_at FROM challenges h WHERE h.complaint_id=c.id ORDER BY h.id DESC LIMIT 1) AS latest_review_submitted_at "
+        ", (SELECT p.status FROM split_proposals p WHERE p.parent_id=c.id) AS split_status "
+        ", (SELECT p.proposal_json FROM split_proposals p WHERE p.parent_id=c.id) AS split_proposal_json "
         "FROM complaints c WHERE c.submitted_by=? AND c.parent_id IS NULL AND c.is_active=1 ORDER BY c.id DESC",
         (user_id,))
 
@@ -27,6 +29,14 @@ def get_own_complaint(user_id: int, complaint_id: int) -> dict | None:
                      "WHERE id=? AND submitted_by=? AND parent_id IS NULL AND is_active=1",
                      (complaint_id, user_id))
     return rows[0] if rows else None
+
+
+def list_own_split_children(user_id: int, parent_id: int) -> list[dict]:
+    """Return linked child issues only when the parent belongs to the resident."""
+    if not get_own_complaint(user_id, parent_id):
+        return []
+    return fetch_all("SELECT id,original_text,issue,source_start,source_end,is_active FROM complaints "
+                     "WHERE parent_id=? ORDER BY id", (parent_id,))
 
 
 def request_own_review(user_id: int, complaint_id: int, reason: str, actor_email: str,

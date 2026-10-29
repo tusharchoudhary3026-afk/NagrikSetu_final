@@ -1,5 +1,5 @@
 pair_id,group_id,label,kind,text_a,date_a,channel_a,text_b,date_b,channel_b,split,labeller,tag
-T01,T01,duplicate,paraphrase_en,Streetlight is not working on Sundar Marg for two days.,2026-10-05,portal,"The street light on Sundar Marg has been off for days, very dark at night.",2026-10-06,phone,dev,AI_LABELLED_AI_REVIEWED,SYNTHETIC
+T01,T01,duplicate,streetlight_same_ward_park,Streetlight is out by the Ward 12 park.,2026-10-05,portal,The light by the Ward 12 park gate is not working.,2026-10-06,phone,dev,AI_LABELLED_AI_REVIEWED,SYNTHETIC
 T02,T02,duplicate,en_vs_hinglish,Garbage has not been picked up in Chandan Nagar for three days.,2026-10-07,portal,"Chandan Nagar mein kachra 3 din se nahi utha, bahut badbu hai.",2026-10-07,social,test,AI_LABELLED_AI_REVIEWED,SYNTHETIC
 T03,T03,duplicate,en_vs_hindi,There is a big pothole on Pavan Road near the petrol pump.,2026-10-08,portal,पवन रोड पर पेट्रोल पंप के पास बड़ा गड्ढा है।,2026-10-09,phone,dev,AI_LABELLED_AI_REVIEWED,SYNTHETIC
 T04,T04,duplicate,hinglish_paraphrase,"Rampur Chowk pe nali jam hai, paani sadak par aa raha hai.",2026-10-03,phone,Rampur Chowk ki nali band hai aur gandi paani bahar beh raha hai.,2026-10-03,portal,test,AI_LABELLED_AI_REVIEWED,SYNTHETIC

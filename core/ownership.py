@@ -15,6 +15,35 @@ def unverified_rows(table=None):
     return t[verification.astype(str).str.strip().str.casefold() != "verified"].copy()
 
 
+def _matching_phrases(phrases, text):
+    matched = []
+    for phrase in phrases:
+        terms = [word for word in re.findall(r"[\w\u0900-\u097f]+", phrase.casefold())
+                 if len(word) > 2 and word not in {"the", "on", "and", "for", "with"}]
+        if terms and all(re.search(r"(?<!\w)" + re.escape(word) + r"(?!\w)", text) for word in terms):
+            matched.append(phrase)
+    return matched
+
+
+def route_conflicts(complaint_text: str, table=None):
+    """Return only explicitly keyed cues that require a human owner choice."""
+    t = table if table is not None else load_table()
+    text = (complaint_text or "").casefold()
+    out = []
+    for _, row in t.iterrows():
+        cues = [cue.strip() for cue in str(row.get("routing_cues", "")).split(";") if cue.strip()]
+        matched = _matching_phrases(cues, text)
+        owner = str(row.get("owner", "")).strip()
+        other = str(row.get("overlap_owner", "")).strip()
+        if matched and owner and other:
+            out.append({"owner": owner, "overlap_owner": other,
+                        "issue_type": str(row.get("issue_type", "")),
+                        "source": str(row.get("source", "")),
+                        "verification": str(row.get("verification", "UNKNOWN")),
+                        "matched_phrases": matched})
+    return out
+
+
 def check(dept: str, table=None):
     t = table if table is not None else load_table()
     out = []
@@ -38,12 +67,7 @@ def check_suggestions(departments: list[str], complaint_text: str, table=None):
         if not owner or not other or owner.casefold() not in chosen or other.casefold() not in chosen:
             continue
         phrases = [p.strip() for p in re.split(r"[/,;]", str(row.get("issue_type", ""))) if p.strip()]
-        matched = []
-        for phrase in phrases:
-            terms = [word for word in re.findall(r"[\w\u0900-\u097f]+", phrase.casefold())
-                     if len(word) > 2 and word not in {"the", "on", "and", "for", "with"}]
-            if terms and all(re.search(r"(?<!\w)" + re.escape(word) + r"(?!\w)", text) for word in terms):
-                matched.append(phrase)
+        matched = _matching_phrases(phrases, text)
         if matched:
             out.append({"owner": owner, "overlap_owner": other, "issue_type": str(row["issue_type"]),
                         "source": str(row.get("source", "")),

@@ -109,8 +109,8 @@ def test_public_portal_returns_only_the_owner_cases(db):
     assert other_id != own_id
 
 
-def test_public_submission_is_atomic_and_visible_after_area_approval(db, staff_user, monkeypatch):
-    from core.geo import approve_area_request, configure_staff_location
+def test_public_submission_is_atomic_and_visible_after_staff_selects_area(db, staff_user, monkeypatch):
+    from core.geo import configure_staff_location
     from core.staff_dashboard import list_staff_cases
     from pathlib import Path
 
@@ -160,12 +160,8 @@ def test_public_submission_is_atomic_and_visible_after_area_approval(db, staff_u
 
     officer = staff_user("operator", "Electricity Dept")
     request = configure_staff_location(officer, "mp", "mp-gwalior",
-                                       "mp-gwalior-gole-ka-mandir", "Verified test scope")
-    assert request["status"] == "pending"
-    assert list_staff_cases(officer) == []
-
-    admin = staff_user("reviewer", "Grievance Cell")
-    approve_area_request(request["request_id"], admin["email"], "Approved synthetic Gwalior test scope")
+                                       "mp-gwalior-gole-ka-mandir")
+    assert request["status"] == "selected"
     cases = list_staff_cases(officer)
     operator_cases = {case["id"]: case for case in cases}
     assert complaint_id in operator_cases and abstained_id in operator_cases
@@ -179,8 +175,8 @@ def test_public_submission_is_atomic_and_visible_after_area_approval(db, staff_u
     # though they have no department assignment for an operator inbox.
     reviewer = staff_user("reviewer", "Grievance Cell")
     review_request = configure_staff_location(reviewer, "mp", "mp-gwalior",
-                                              "mp-gwalior-gole-ka-mandir", "Verified test scope")
-    approve_area_request(review_request["request_id"], admin["email"], "Approved synthetic Gwalior test scope")
+                                              "mp-gwalior-gole-ka-mandir")
+    assert review_request["status"] == "selected"
     review_cases = {case["id"]: case for case in list_staff_cases(reviewer)}
     assert complaint_id in review_cases
     assert review_cases[complaint_id]["original_text"] == original

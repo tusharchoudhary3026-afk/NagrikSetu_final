@@ -36,13 +36,13 @@ def render_staff_dashboard(user):
     areas = sorted({row.get("area_name") or row.get("location") or "Area not recorded" for row in rows})
     issues = sorted({row.get("issue") or "Uncategorized" for row in rows})
     render_hero("Government staff workspace", "Complaint operations",
-                "Review complaints in your approved service areas, take accountable actions, and follow the immutable case history.")
+                "Review complaints in your selected service areas, take accountable actions, and follow the immutable case history.")
     if user.get("role") == "operator":
         access_label = f"Officer department: {user.get('department') or 'not assigned'}"
     elif user.get("role") == "auditor":
-        access_label = "Read-only audit scope: authorized departments within approved service areas"
+        access_label = "Read-only audit scope: authorized departments within selected service areas"
     else:
-        access_label = "Review scope: authorized departments within approved service areas"
+        access_label = "Review scope: authorized departments within selected service areas"
     st.caption(f"Access scope: {access_label}")
     st.info("DEMO SLA assumption · deadlines are configurable prototype targets, not official service guarantees.",
             icon="⏱️")
@@ -79,9 +79,9 @@ def render_staff_dashboard(user):
         st.page_link("pages/13_Hotspots.py", label="Open hotspot analysis", icon="📈")
 
     st.subheader("Officer inbox")
-    st.caption(f"Showing {len(rows)} complaints authorized for your role, assigned department, and approved service areas.")
+    st.caption(f"Showing {len(rows)} complaints available to your role, assigned department, and selected service areas.")
     if not rows:
-        st.success("No complaints are currently assigned to your department and approved service areas.")
+        st.success("No complaints are currently assigned to your department and selected service areas.")
         return
 
     statuses = sorted({row["status"] for row in rows})
@@ -144,7 +144,9 @@ def render_staff_dashboard(user):
                 "Ward / area": row.get("area_name") or row.get("location") or "Area not recorded",
                 "Suggested department": row.get("suggested_department") or "Human review needed",
                 "Current department": row.get("current_department") or "Not assigned",
-                "Status": row["status"], "SLA": row["sla"]["label"],
+                "Status": row["status"],
+                "Split review": (row.get("split_status") or "—").replace("_", " "),
+                "SLA": row["sla"]["label"],
                 "Safety": "Review" if row["safety"]["flagged"] else "—",
                 "Ownership": "Check" if row["ownership_conflicts"] else "—"}
                for row in visible]
@@ -207,7 +209,12 @@ def render_staff_dashboard(user):
             st.write(f"**Suggested department:** {detail['suggested_department'] or 'No selected suggestion'}")
             st.write(f"**Current department:** {detail['current_department'] or 'Not assigned'}")
             if detail["uncertain"]:
-                st.warning("No usable routing suggestion is available. A human decision is required.")
+                if detail.get("split_status") in {"proposed", "edited"}:
+                    st.warning("Compound complaint · no department is assigned to the parent. Staff must confirm or edit the proposed sub-issues.")
+                elif detail.get("split_status") == "confirmed":
+                    st.info("The parent remains unassigned as a whole. Review the confirmed sub-issues below for their separate routes.")
+                else:
+                    st.warning("No usable routing suggestion is available. A human decision is required.")
         if detail["routing_history"]:
             st.markdown("**Routing evidence and uncertainty**")
             for item in detail["routing_history"]:
@@ -220,10 +227,13 @@ def render_staff_dashboard(user):
             for flag in detail["safety"]["flags"]:
                 st.write(f"{flag['label']} · matched: {', '.join(flag['matched_text'])}")
         if detail["ownership_conflicts"]:
-            st.warning("Ownership / jurisdiction overlap · review before transferring or deciding.")
+            st.warning("Possible ownership overlap · manual review required; this flag does not decide responsibility or assign a department.")
             for conflict in detail["ownership_conflicts"]:
+                verification = str(conflict.get("verification", "UNKNOWN")).strip().upper()
+                verification_label = ("unverified rule" if verification in {"ASSUMPTION", "UNKNOWN", "UNVERIFIED"}
+                                      else verification)
                 st.write(f"{conflict['owner']} ↔ {conflict['overlap_owner']} · {conflict['issue_type']} · "
-                         f"Source: {conflict['source']} · Verification: {conflict['verification']}")
+                         f"Source: {conflict['source']} · {verification_label}")
         if detail["bounce_warning"] or detail["repeat_reassignment"]:
             warning = detail["bounce_warning"] or detail["repeat_reassignment"]
             st.warning(f"Repeated department reassignment detected for review: {warning}")

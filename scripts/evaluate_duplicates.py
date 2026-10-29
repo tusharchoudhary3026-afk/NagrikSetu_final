@@ -7,6 +7,8 @@ from pathlib import Path
 import pandas as pd
 
 from core.duplicates import compare_pair
+from core.config import (DUP_TEXT_WEIGHT, DUP_ISSUE_WEIGHT, DUP_LOCATION_WEIGHT,
+                         DUP_MIN_SCORE, DUP_TIME_WINDOW_DAYS)
 from core.intake import extract_issue, extract_location, normalize
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,7 +73,7 @@ def _features(row):
 
 def _tune_dev(dev, min_precision=0.8):
     scored = [(row, _features(row)) for row in dev.to_dict("records")]
-    candidates = sorted({0.0, 1.0001, *(signal["score"] for _, signal in scored)})
+    candidates = sorted({0.0, 1.0, *(signal["score"] for _, signal in scored)})
     metrics = []
     for threshold in candidates:
         tp = sum(row["label"] == "duplicate" and signal["score"] >= threshold and not signal["hard_conflict"]
@@ -88,7 +90,15 @@ def _tune_dev(dev, min_precision=0.8):
     safe = [row for row in metrics if row["precision"] >= min_precision and row["true_positive"] > 0]
     choices = safe or [row for row in metrics if row["true_positive"] > 0]
     if not choices:
-        raise ValueError("The dev pair set provides no threshold with any positive predictions.")
+        # If all non-zero candidate cutoffs miss the preferred precision floor,
+        # retain the configured conservative placeholder and abstain from a label.
+        return {"threshold": DUP_MIN_SCORE, "true_positive": 0, "false_positive": 0,
+                "precision": 0.0, "recall": 0.0, "f1": 0.0}, scored
+    if not safe:
+        # Do not trade away the stated precision floor just to maximize a weak synthetic F1.
+        conservative = [row for row in metrics if row["threshold"] == 1.0]
+        if conservative:
+            return conservative[0], scored
     # Prefer F1, then precision, then a stricter threshold when tied.
     best = max(choices, key=lambda row: (row["f1"], row["precision"], row["threshold"]))
     return best, scored
@@ -102,14 +112,15 @@ def tune_duplicate_threshold():
     config = {
         "schema_version": 1,
         "threshold": round(best["threshold"], 4),
-        "time_window_days": 7,
-        "weights": {"text": 0.65, "location": 0.2, "time": 0.15},
+        "time_window_days": DUP_TIME_WINDOW_DAYS,
+        "weights": {"text": DUP_TEXT_WEIGHT, "issue": DUP_ISSUE_WEIGHT,
+                    "location": DUP_LOCATION_WEIGHT},
         "tuned_on_split": "dev",
         "tuning_metric": "F1 with a preferred precision floor of 0.80",
         "dev_precision_floor": 0.80,
         "dev_precision_floor_met": best["precision"] >= 0.80,
-        "dev_tuning_note": ("preferred precision floor met" if best["precision"] >= 0.80 else
-                            "no non-zero-prediction dev threshold met the preferred precision floor; selected best F1 on dev"),
+        "dev_tuning_note": ("preferred precision floor met" if best["precision"] >= 0.80 and best["true_positive"] > 0 else
+                            "no non-zero-prediction dev threshold met the preferred precision floor; conservative configured threshold retained"),
         "dev_pairs": len(dev),
         "dev_true_positive": best["true_positive"],
         "dev_false_positive": best["false_positive"],

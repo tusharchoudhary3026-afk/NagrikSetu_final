@@ -4,13 +4,11 @@ import streamlit as st
 from core import intake, ownership, router_baseline, splitter
 from core.attachment import save_attachment
 from core.config import SIM_LABEL, feature_enabled
-from core.db import init_db, insert_complaint, insert_suggestion
-from core.ledger import log_event
+from core.db import init_db, insert_public_submission
 from core.safety import flag_safety
 from core.security import attachment_encryption_status
 from core.speech import validate_transcript_submission
 from core.speech_component import speech_input
-from core.suggestions import selected_department
 from core.ui import apply_demo_style, render_hero, require_permission
 from core.geo import staff_area_scope
 
@@ -127,13 +125,8 @@ if "rec" in st.session_state:
             st.stop()
         rec["case_id"] = f"CASE-{uuid.uuid4().hex.upper()}"
         try:
-            cid = insert_complaint(rec)
-            insert_suggestion(cid, "baseline", rt["top3"], rt["evidence"], rt["confidence"], rt["abstained"])
-            top = selected_department(rt)
-            log_event(cid, "suggested", "system", suggested_dept=top,
-                      details={"abstained": rt["abstained"], "confidence": rt["confidence"],
-                               "safety_flags": safety.get("flags", []),
-                               "extracted_issue_evidence": rec.get("issue_evidence", [])}, actor_user=user)
+            cid = insert_public_submission(rec, rt, submitted_by=user["id"],
+                                           split_proposal=sp if sp["is_compound"] else None)
             if photo is not None:
                 save_attachment(cid, photo, user["role"], actor_user=user)
             if confirm_split:

@@ -83,6 +83,7 @@ def init_db():
             "is_active": "INTEGER NOT NULL DEFAULT 1",
             "state_code": "TEXT", "state_name": "TEXT", "city_code": "TEXT",
             "city_name": "TEXT", "area_code": "TEXT", "area_name": "TEXT",
+            "source_start": "INTEGER", "source_end": "INTEGER",
             "location_normalized": "TEXT",
         }.items():
             if name not in complaint_columns:
@@ -184,7 +185,8 @@ def insert_suggestion(complaint_id, method, top3, evidence, confidence, abstaine
         conn.close()
 
 
-def insert_public_submission(rec: dict, route: dict, submitted_by: int | None = None) -> int:
+def insert_public_submission(rec: dict, route: dict, submitted_by: int | None = None,
+                             split_proposal: dict | None = None) -> int:
     """Persist the complaint, its routing suggestion, and initial ledger event atomically."""
     import json
     from .intake import normalize_location
@@ -216,6 +218,16 @@ def insert_public_submission(rec: dict, route: dict, submitted_by: int | None = 
         conn.execute(
             "INSERT INTO ledger (complaint_id,event_type,actor,suggested_dept,details) VALUES(?,?,?,?,?)",
             (complaint_id, "suggested", "system", suggestion, json.dumps(details)))
+        if split_proposal and split_proposal.get("is_compound"):
+            proposal_json = json.dumps(split_proposal, ensure_ascii=False, sort_keys=True)
+            conn.execute(
+                "INSERT INTO split_proposals(parent_id,proposal_json,status,lead_department) VALUES(?,?,?,?)",
+                (complaint_id, proposal_json, "proposed", suggestion))
+            conn.execute(
+                "INSERT INTO ledger(complaint_id,event_type,actor,suggested_dept,details) VALUES(?,?,?,?,?)",
+                (complaint_id, "split_proposed", "system", suggestion,
+                 json.dumps({"status": "proposed", "synthetic": True,
+                             "proposal": split_proposal}, ensure_ascii=False, sort_keys=True)))
         conn.commit()
         return complaint_id
     except Exception:

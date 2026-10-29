@@ -20,11 +20,11 @@ Audit date: 2026-10-28. Source: the user's updated feature-scope PDF and final-r
 | 12 | Speech transcription | `core/speech.py`, `core/speech_component.py` | MOCK | all-pages AppTest; transcript validation test | Actual microphone/audio transcription and language accuracy unverified |
 | 13 | Private photo attachment, authorized access | `core/attachment.py`, `pages/2_Review.py` | WORKS | encryption, role-access and upload validation tests | Deployment key management and operational access review |
 | 14 | Citizen confirms extracted fields | `pages/10_Public_Portal.py` | PARTIAL | portal page smoke test | Explicit confirm/edit step before submission needs completion |
-| 15 | Detect potential multi-issue complaints | `core/splitter.py` | WORKS | AT-07; split tests | Broader multilingual error set |
-| 16 | Extract grounded candidate sub-issues | `core/splitter.py` | PARTIAL | split tests | Candidate editing before confirm is incomplete |
+| 15 | Detect potential multi-issue complaints | `core/splitter.py` | WORKS | AT-07; 66-row SYNTHETIC evaluation fixture | Rule-based segmentation still misses some Hindi phrasing; see splitter report |
+| 16 | Extract grounded candidate sub-issues | `core/splitter.py`, `pages/10_Public_Portal.py` | WORKS | Citizen AppTest shows per-clause categories, evidence and offsets | Edit remains constrained to exact spans of the parent text |
 | 17 | Link children under parent case | `core/splitter.py`, `db/schema.sql` | WORKS | split confirmation/merge test | None for prototype |
 | 18 | Suggest lead department | `core/splitter.py` | PARTIAL | split and abstention tests | Needs an explicit reviewed lead-owner rule |
-| 19 | Human confirm/edit/merge-back | `core/splitter.py` | PARTIAL | split/merge-back and permission tests | Edit proposed parts before confirmation is not available end to end |
+| 19 | Human confirm/edit/merge-back | `core/splitter.py`, `pages/2_Review.py` | WORKS | Reviewer AppTest confirms; reasoned edit/merge paths use ledger events | Department adjustment is limited to evidence-backed candidates |
 | 20 | Keep unclear complaints intact and flagged | `core/splitter.py` | WORKS | unclear/abstention regression tests | None for prototype |
 | 21 | Keyword baseline router | `core/router_baseline.py` | WORKS | `scripts.evaluate_full` | Weak measured accuracy; see TEST_REPORT |
 | 22 | TF-IDF/logistic regression router | `core/router_ml.py` | PARTIAL | `scripts.evaluate_full`, `scripts.diagnose_tfidf` | Validation selects no safe threshold; test answers 0/21 |
@@ -37,21 +37,21 @@ Audit date: 2026-10-28. Source: the user's updated feature-scope PDF and final-r
 | 29 | No automatic close/reject/finalize | `core/reviews.py`, safety tests | WORKS | `test_automatic_final_actions_are_rejected_without_mutation` | Continue to guard any new action paths |
 | 30 | Responsibility table, target 10–15 issue types | `data/responsibility_table.csv`, `core/ownership.py` | PARTIAL | evaluator: 8/8 rows unverified | Expand to target size and verify with city sources |
 | 31 | Flag overlapping ownership by issue/cues | `core/ownership.py` | PARTIAL | AT-08; overlap tests | Measured overlap recall is low; improve rule coverage |
-| 32 | Show owner rule and source | `core/ownership.py`, review pages | PARTIAL | AT-08 and explanation test | Current rules are assumptions, not authoritative sources |
+| 32 | Show owner rule and source | `core/ownership.py`, review and staff dashboard | PARTIAL | AT-08 and explanation test | ASSUMPTION rows now say “unverified rule”; sources still need authoritative verification |
 | 33 | Detect A→B→A transfers | `core/analytics.py` | WORKS | `test_E6_bounce_pattern` | Add checked-in transfer-history fixture for repeatable demo |
 | 34 | Flag repeat reassignments without blame | `core/analytics.py` | WORKS | analytics tests | More realistic synthetic histories needed |
 | 35 | Lead-department proposal for overlap | `core/ownership.py` | MOCK | no production assignment flow | Keep as human-reviewed suggestion |
 | 36 | Cross-department shared review thread | — | MOCK | no shared-thread service | Out of current prototype |
-| 37 | Duplicate text similarity | `core/duplicates.py` | PARTIAL | duplicate evaluator and service tests | Jaccard token overlap, not TF-IDF/embeddings; weak measured recall |
-| 38 | Location proximity match | `core/duplicates.py` | PARTIAL | duplicate tests | Exact normalized location only; no geographic proximity |
+| 37 | Duplicate text similarity | `core/duplicates.py` | PARTIAL | duplicate evaluator and service tests | Devanagari-safe TF-IDF word 1–2 grams; cross-language matches can be missed and metrics remain synthetic |
+| 38 | Location proximity match | `core/duplicates.py` | PARTIAL | duplicate tests | String-based same/nearby/different/unknown; no geographic proximity |
 | 39 | Configurable time-window match | `core/duplicates.py`, `data/duplicate_threshold.json` | WORKS | duplicate evaluation and service tests | Validate window with real operational data |
 | 40 | Candidate evidence panel | `core/duplicates.py`, `pages/2_Review.py` | WORKS | duplicate UI code and page smoke test | None for prototype |
 | 41 | Same-place/different-incident safeguards | `core/duplicates.py` | PARTIAL | numbered-asset/date/issue tests | Numeric and issue conflict heuristics need broader validation |
-| 42 | Human confirm or unlink | `core/duplicates.py`, `pages/2_Review.py` | WORKS | reversible link service tests | Appeal workflow not separate |
+| 42 | Human confirm, reject, or unlink | `core/duplicates.py`, `pages/2_Review.py`, `pages/9_Duplicates.py` | WORKS | reason, event, and staff-page tests | Appeal workflow not separate; link history remains append-only |
 | 43 | Incident cluster map | — | MOCK | no map integration | Not required for review workflow |
 | 44 | Automatic duplicate merging | — | REMOVED | service only links after explicit human decision | Explicitly prohibited by source scope |
 | 37a | Normalize comparable values separately from originals | `core/intake.py`, `core/duplicates.py` | WORKS | original-preservation and duplicate tests | None for prototype |
-| 37b | Weighted text/location/time score with visible components | `core/duplicates.py`, config JSON | WORKS | duplicate score tests | Scores are not calibrated probabilities |
+| 37b | Weighted TF-IDF/issue/location ranking with visible components | `core/duplicates.py`, `core/config.py` | WORKS | duplicate score tests | Placeholder score is not a calibrated probability |
 | 37c | Shared terms, location, time, missing fields, conflicts | `core/duplicates.py`, `pages/2_Review.py` | WORKS | candidate evidence and page smoke test | None for prototype |
 | 37d | likely same / related / distinct / insufficient evidence | `core/duplicates.py` | WORKS | outcome-label test | Labels are decision support only |
 | 37e | Different date/asset/issue safeguards | `core/duplicates.py` | PARTIAL | synthetic hard-case tests | False-positive behavior remains weak on pair test set |
@@ -148,8 +148,12 @@ There are stray `_init_.py` files alongside Python's conventional `__init__.py` 
 
 ## Geographic access implementation addendum (2026-10-28)
 
-- Staff accounts select state/city/area from `data/geo_coverage.json`; these sample areas are marked simulated. Staff-selected locations create requests only. Exact allowlist grants and administrator approvals are persisted in append-only `government_area_events`.
+- Staff accounts select state/city/area from `data/geo_coverage.json`; these sample areas are marked simulated. Selection activates immediately in additive `staff_selected_areas`; earlier administrator-approved grants remain in append-only `government_area_events`.
 - The login role, active database account, and matching signed-in email are checked before staff scope queries or complaint service operations. Review, challenge, split, duplicate, correction verification, photo reads, analytics, replay, and audit export now receive the staff actor and enforce that scope. Public review requests require complaint ownership.
 - Residents can submit fully or partially known structured location; unknown fields remain null. Existing records are not retroactively assigned to an area. Only a configured geography administrator can see the unassigned review queue.
 - Test coverage: `tests/test_geo_scope.py`, `tests/test_email_accounts_and_public_portal.py`, and the all-pages AppTest. Final full run: 79 passed.
-- Limit: geographic options are illustrative, not authoritative municipal boundaries. Production government identity verification, admin governance, secure secret deployment, and real ward dataset are still required.
+- Limit: geographic options are illustrative, not authoritative municipal boundaries. Production government identity verification, secure secret deployment, and an authoritative ward dataset are still required.
+
+## Staff self-selection follow-up (2026-10-29)
+
+Ordinary staff can now select one or more areas from Overview without a geography-admin request. `staff_selected_areas` is loaded by the same server-side scope checks for inbox, dashboard, review actions, attachments and related services. Role and operator-department restrictions remain active. Regression tests verify a public Gole Ka Mandir complaint appears immediately after an ordinary staff reviewer/operator selects that area. The previous request/approval flow remains only for old recorded requests; its page is hidden from navigation.

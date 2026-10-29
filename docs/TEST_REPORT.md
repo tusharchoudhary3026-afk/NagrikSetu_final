@@ -2,6 +2,23 @@
 
 ## Latest audit run (2026-10-29)
 
+### Duplicate candidate and ownership review follow-up (2026-10-29)
+
+Read-only audit found that ownership checks and duplicate review already existed; AT-03 was already a real test, despite the pasted task claiming it was skipped. This follow-up adds the missing staff page and evidence/access surfaces, explicit unverified-rule wording, case-denominated transfer-pattern counts, grounded TF-IDF/issue/location evidence, guarded candidate visibility, and reasoned append-only duplicate-confirmed/rejected/unlinked events. Confirmation does not merge records. The frozen pair test rows and manifest were unchanged; one development pair was updated to include the requested Ward 12 park streetlight example, then only the development split was used to refresh the evaluator artifact.
+
+The conservative threshold remained at **1.0** because no non-zero development cutoff met the preferred 0.80 precision floor. This produces no above-threshold predicted pairs on either split (undefined precision, recall **0/10**, false positives **0/10**, accuracy **10/20** on test). Staff still see ranked candidates and decide; the zero-recall evaluation is a clear limitation, not a claim of useful duplicate detection. Frozen test manifest hash: `ed9b84c431b72f440b6a41b8c08febb66bfb7a431f9c57d31878f633e76fb5fe`.
+
+Verification commands (run using Python 3.12 runtime and project site-packages):
+
+- `python -m pytest -q`: **192 passed**; this includes the database-level duplicate reason requirement, immutable duplicate decision history, public denial, and authorized reviewer page tests.
+- `python -m scripts.run_acceptance`: **192 passed**; AT-01 through AT-08, Engine 6 bounce check, page role checks, and the duplicate DB-reason regression passed.
+- `python -m scripts.evaluate_duplicates --tune` (development only), then `python -m scripts.evaluate_duplicates`: dev/test set sizes **20/20**, frozen manifest verified, group leakage **0**; test TP **0**, FP **0**, FN **10**, TN **10**.
+- `python -m streamlit run app.py --server.headless true --server.port 8505`: server started and returned **HTTP 200** at `http://localhost:8505`. AppTest also verified reviewer access and public denial on the Duplicates page.
+
+### Staff-selected service areas follow-up (2026-10-29)
+
+Updated the staff Overview to activate selected areas immediately and added `staff_selected_areas` for persistence across refreshes. The prior pending-request behavior is no longer the access path; old pending events do not block new selections. Server checks still enforce active staff identity/role, selected geography, operator department, and auditor read-only access. Full suite and acceptance runner: **184 passed**; AT-01 through AT-06 **6/6 PASS**. Focused access-flow run: **17 passed**. After making the location picker continuously visible on Overview, its self-selection and all-page startup regressions passed **2/2**.
+
 The latest repository suite completed **177 passed in 84.78s** (`python -m pytest tests run_test.py -q`); the acceptance runner completed **174 passed in 90.33s** (`python -m scripts.run_acceptance`), with AT-01 through AT-06 **6/6 PASS**. Both runs include the clarified ordinary-staff approval gate and regression tests for the citizen extraction preview, reviewer extraction corrections, versioned safety rubric, auditor ledger verification, and the three exact demo staff views. `python -m compileall -q app.py core pages scripts tests` passed, and `git diff --check` on changed source/docs passed with only Git's LF/CRLF notices. The configured production/default database was not changed by tests; each test used an isolated temporary SQLite database. There is no HTTP API in this Streamlit project, so end-to-end coverage uses Streamlit AppTest and direct service calls, not external browser HTTP/API evidence. See [STAFF_AREA_SELF_SELECTION_2026-10-29.md](STAFF_AREA_SELF_SELECTION_2026-10-29.md), [DEMO_STAFF_AREA_ACCESS_FIX_2026-10-29.md](DEMO_STAFF_AREA_ACCESS_FIX_2026-10-29.md), and [CODE_AUDIT_2026-10-29.md](CODE_AUDIT_2026-10-29.md). The dated verification sections below are historical runs.
 
 Run date: 2026-10-28. All model/evaluation datasets are synthetic. Commands ran with Python 3.12 from the repository virtual environment and temporary pytest databases. The configured SQLite database was backed up before both additive migrations.
@@ -51,7 +68,7 @@ Per-language baseline correctness: English 2/7, Hindi 2/7, Hinglish 2/7. TF-IDF:
 
 Command: `python -m scripts.evaluate_duplicates --tune` (dev split only), then `python -m scripts.evaluate_duplicates` (frozen test split). There are 40 labelled pairs: 20 dev and 20 test, 40 unique groups, zero group leakage. The test manifest hash is verified before scoring. Pair labels are synthetic and AI-authored/AI-reviewed, not independent human ground truth.
 
-The dev-only selected threshold is **0.8375**. On dev it yielded precision **1/1**, recall **1/10**, and 0 false positives among 10 negative pairs. On the frozen test set the threshold predicted no positive pairs: precision is undefined (0 predictions), recall **0/10**, false positives **0/10**, and accuracy **10/20**. The zero-recall result is weak and should not be interpreted as useful duplicate detection. The test set was not used to change the threshold.
+After the duplicate signal update, no non-zero-prediction development threshold met the preferred 0.80 precision floor, so the configured conservative placeholder **1.0** was retained. At that cutoff, dev precision is undefined (0 predictions), recall **0/10**, and false positives **0/10**. On the frozen test set, precision is undefined (0 predictions), recall **0/10**, false positives **0/10**, and accuracy **10/20**. The ranked candidate list remains available to staff; this cutoff does not confirm or merge cases. Test manifest hash remains `ed9b84c431b72f440b6a41b8c08febb66bfb7a431f9c57d31878f633e76fb5fe`; no test rows were changed or used for tuning. These metrics are synthetic, AI-authored/AI-reviewed and not independent ground truth, and zero recall means the threshold artifact does not validate duplicate detection.
 
 ## Safety rubric sanity check
 
