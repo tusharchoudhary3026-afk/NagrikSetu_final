@@ -1,124 +1,175 @@
-"""Area/category hotspot review signals, scoped to the authenticated staff member."""
-from datetime import datetime, time, timedelta, timezone
-import math
+"""Hotspot Detection Engine for NyayaFlow.
 
-from .config import SIM_LABEL, feature_enabled
-from .intake import normalize_location
-from .staff_dashboard import _parse_time, list_staff_cases
+Groups scoped complaints by geographic area and issue category over comparison
+time windows to detect concentration spikes for human review.
+"""
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+import pandas as pd
 
-
-def _date_start(value):
-    return datetime.combine(value, time.min, tzinfo=timezone.utc)
-
-
-def _date_end(value):
-    return datetime.combine(value + timedelta(days=1), time.min, tzinfo=timezone.utc)
+from core.staff_dashboard import list_staff_cases
 
 
-def detect_hotspot_signals(actor_user, *, window_days=7, as_of=None, start_date=None, end_date=None,
-                           area_filter=None, category_filter=None, min_count=5, multiplier=2.0):
-    """Compare a scoped current period with the preceding equal period.
+def detect_hotspot_signals(
+    user: Dict[str, Any],
+    window_days: int = 7,
+    as_of: Optional[datetime] = None,
+    area_filter: str = "All authorized areas",
+    category_filter: str = "All categories",
+    min_count_threshold: int = 3,
+    surge_multiplier: float = 1.5,
+) -> Dict[str, Any]:
+    """Analyze authorized complaints to identify localized frequency surges.
 
-    The default rule is a review signal only: at least five reports and at least
-    twice the preceding comparable count. No location is inferred for unknown cases.
+    Args:
+        user: Authenticated user session dictionary with role and scope permissions.
+        window_days: Comparison evaluation window in days.
+        as_of: Reference cutoff timestamp (defaults to UTC now).
+        area_filter: Selected ward/area filter name.
+        category_filter: Selected category/issue filter name.
+        min_count_threshold: Minimum complaint count required to flag.
+        surge_multiplier: Threshold multiplier over baseline count.
+
+    Returns:
+        Structured report dictionary matching the 13_Hotspots.py interface contract.
     """
-    if not 1 <= int(window_days) <= 90 or int(min_count) < 1 or float(multiplier) < 1:
-        raise ValueError("Choose a 1–90 day window and positive hotspot thresholds.")
-    if not feature_enabled("hotspots"):
-        raise PermissionError("Hotspot review signals are disabled by configuration.")
-    cases = list_staff_cases(actor_user)
-    now = as_of or datetime.now(timezone.utc)
-    now = now.replace(tzinfo=timezone.utc) if now.tzinfo is None else now.astimezone(timezone.utc)
-    if start_date is not None and end_date is not None:
-        current_start, current_end = _date_start(start_date), _date_end(end_date)
-        if current_end <= current_start or (current_end - current_start).days > 90:
-            raise ValueError("Choose a valid date range of no more than 90 days.")
-        duration = current_end - current_start
-    else:
-        current_end = now
-        duration = timedelta(days=int(window_days))
-        current_start = current_end - duration
-    baseline_start = current_start - duration
-    if (area_filter or "All authorized areas") not in {"", "All authorized areas"}:
-        area_key_filter = normalize_location(area_filter)
-    else:
-        area_key_filter = None
-    category_key_filter = normalize_location(category_filter) if category_filter and category_filter != "All categories" else None
+    if as_of is None:
+        as_of = datetime.now(timezone.utc)
+    elif as_of.tzinfo is None:
+        as_of = as_of.replace(tzinfo=timezone.utc)
 
-    current_rows, baseline_rows = [], []
-    groups = {}
-    areas, categories = set(), set()
-    for case in cases:
-        created = _parse_time(case.get("created_at"))
-        if not created or not baseline_start <= created < current_end:
-            continue
-        area_code = (case.get("area_code") or "").strip().casefold()
-        raw_area = case.get("area_name") or case.get("location")
-        if not raw_area or normalize_location(str(raw_area)) in {"unknown", "not known"}:
-            display_area, group_area = "Unknown area", "__unknown_area__"
-        else:
-            display_area = str(raw_area)
-            group_area = area_code or (normalize_location(display_area) or "__unknown_area__")
-        raw_category = case.get("issue") or "Uncategorized"
-        category_key = normalize_location(str(raw_category)) or "uncategorized"
-        areas.add(display_area)
-        categories.add(str(raw_category))
-        if area_key_filter and area_key_filter not in {normalize_location(display_area), group_area}:
-            continue
-        if category_key_filter and category_key_filter != category_key:
-            continue
-        group = groups.setdefault((group_area, category_key), {
-            "area": display_area, "category": str(raw_category), "current_ids": [],
-            "baseline_ids": [], "synthetic": False,
-        })
-        group["synthetic"] = group["synthetic"] or bool(case.get("is_synthetic"))
-        if current_start <= created < current_end:
-            current_rows.append(case)
-            group["current_ids"].append(case["id"])
-        else:
-            baseline_rows.append(case)
-            group["baseline_ids"].append(case["id"])
+    # 1. Fetch authorized cases scoped to the user
+    cases = list_staff_cases(user)
 
-    rule = f"at least {multiplier:g}x baseline and at least {int(min_count)} complaints in the current period"
-    signals = []
-    for group in groups.values():
-        current_count, baseline_count = len(group["current_ids"]), len(group["baseline_ids"])
-        if current_count < int(min_count) or current_count < math.ceil(baseline_count * float(multiplier)):
+    current_start = as_of - timedelta(days=window_days)
+    current_end = as_of
+    comparison_start = current_start - timedelta(days=window_days)
+    comparison_end = current_start
+
+    data_label = "Operational simulation data · Synthetic baseline"
+    rule_desc = (
+        f"Flagged if current window count >= {min_count_threshold} and exceeds preceding "
+        f"{window_days}-day baseline by >= {int(surge_multiplier * 100)}% (or new cluster appearance)"
+    )
+
+    if not cases:
+        return {
+            "status": "insufficient_data",
+            "data_label": data_label,
+            "current_count": 0,
+            "areas_flagged": 0,
+            "window_days": window_days,
+            "rule": rule_desc,
+            "hotspots": [],
+            "current_start": current_start.strftime("%Y-%m-%d"),
+            "current_end": current_end.strftime("%Y-%m-%d"),
+            "comparison_start": comparison_start.strftime("%Y-%m-%d"),
+            "comparison_end": comparison_end.strftime("%Y-%m-%d"),
+        }
+
+    # Normalize cases into a DataFrame
+    df = pd.DataFrame(cases)
+
+    # Convert timestamps with timezone safety
+    df["created_at_dt"] = pd.to_datetime(df["created_at"], errors="coerce", utc=True)
+    df = df.dropna(subset=["created_at_dt"])
+
+    # Standardize area and category fields
+    df["area_clean"] = df.apply(
+        lambda r: r.get("area_name") or r.get("location") or "Unknown area", axis=1
+    )
+    df["category_clean"] = df.apply(
+        lambda r: r.get("issue") or "Uncategorized", axis=1
+    )
+
+    # Apply UI filters
+    if area_filter and area_filter != "All authorized areas":
+        df = df[df["area_clean"] == area_filter]
+    if category_filter and category_filter != "All categories":
+        df = df[df["category_clean"] == category_filter]
+
+    # Split into current period and baseline period
+    current_df = df[(df["created_at_dt"] >= current_start) & (df["created_at_dt"] < current_end)]
+    baseline_df = df[(df["created_at_dt"] >= comparison_start) & (df["created_at_dt"] < current_start)]
+
+    current_total = len(current_df)
+    if current_total == 0:
+        return {
+            "status": "ok",
+            "data_label": data_label,
+            "current_count": 0,
+            "areas_flagged": 0,
+            "window_days": window_days,
+            "rule": rule_desc,
+            "hotspots": [],
+            "current_start": current_start.strftime("%Y-%m-%d"),
+            "current_end": current_end.strftime("%Y-%m-%d"),
+            "comparison_start": comparison_start.strftime("%Y-%m-%d"),
+            "comparison_end": comparison_end.strftime("%Y-%m-%d"),
+        }
+
+    hotspot_signals: List[Dict[str, Any]] = []
+
+    # Group current cases by area and issue category
+    current_grouped = current_df.groupby(["area_clean", "category_clean"])
+
+    for (area, category), grp in current_grouped:
+        curr_count = len(grp)
+        if curr_count < min_count_threshold:
             continue
-        signals.append({
-            "area": group["area"], "category": group["category"],
-            "current_count": current_count, "baseline_count": baseline_count,
-            "increase": current_count - baseline_count,
-            "change_percent": round((current_count - baseline_count) * 100 / baseline_count, 1)
-            if baseline_count else None,
-            "comparison_start": baseline_start.isoformat(timespec="seconds"),
-            "comparison_end": current_start.isoformat(timespec="seconds"),
-            "current_start": current_start.isoformat(timespec="seconds"),
-            "current_end": current_end.isoformat(timespec="seconds"),
-            "window_days": duration.days, "rule": rule,
-            "complaint_ids": sorted(group["current_ids"]),
-            "data_label": SIM_LABEL if group["synthetic"] else "OBSERVED",
-            "interpretation": "Potential hotspot review signal; not proof of cause, negligence, or department failure.",
-        })
-    signals.sort(key=lambda item: (-item["increase"], -item["current_count"], item["area"], item["category"]))
-    sufficient = bool(current_rows or baseline_rows)
+
+        # Calculate baseline count for this exact area + category
+        base_matches = baseline_df[
+            (baseline_df["area_clean"] == area) & (baseline_df["category_clean"] == category)
+        ]
+        base_count = len(base_matches)
+        increase = curr_count - base_count
+
+        # Surge qualification
+        is_surge = False
+        why_flagged = ""
+
+        if base_count == 0 and curr_count >= min_count_threshold:
+            is_surge = True
+            why_flagged = f"New cluster ({curr_count} cases, 0 in baseline period)"
+        elif base_count > 0 and curr_count >= (base_count * surge_multiplier):
+            is_surge = True
+            pct = int(((curr_count - base_count) / base_count) * 100)
+            why_flagged = f"+{pct}% increase over baseline ({curr_count} vs {base_count})"
+        elif curr_count >= (min_count_threshold * 2):
+            is_surge = True
+            why_flagged = f"High absolute volume ({curr_count} complaints recorded)"
+
+        if is_surge:
+            interpretation = (
+                f"Concentration surge in {area} for '{category}'. Prompt for field verification; "
+                f"evaluates repeat infrastructure failure or duplicate reporting without inferring fault."
+            )
+            hotspot_signals.append({
+                "area": area,
+                "category": category,
+                "current_count": curr_count,
+                "baseline_count": base_count,
+                "increase": increase,
+                "rule": why_flagged,
+                "data_label": data_label,
+                "interpretation": interpretation,
+                "complaint_ids": grp["id"].tolist(),
+            })
+
+    # Sort descending by current count
+    hotspot_signals.sort(key=lambda x: x["current_count"], reverse=True)
+
     return {
-        "status": "ready" if sufficient else "insufficient_data",
-        "rule": rule, "current_count": len(current_rows), "baseline_count": len(baseline_rows),
-        "areas_flagged": len(signals), "current_start": current_start.isoformat(timespec="seconds"),
-        "current_end": current_end.isoformat(timespec="seconds"),
-        "comparison_start": baseline_start.isoformat(timespec="seconds"),
-        "comparison_end": current_start.isoformat(timespec="seconds"),
-        "window_days": duration.days, "hotspots": signals,
-        "available_areas": sorted(areas, key=str.casefold),
-        "available_categories": sorted(categories, key=str.casefold),
-        "data_label": SIM_LABEL if any(bool(case.get("is_synthetic")) for case in current_rows + baseline_rows)
-        else "OBSERVED",
+        "status": "ok",
+        "data_label": data_label,
+        "current_count": current_total,
+        "areas_flagged": len(hotspot_signals),
+        "window_days": window_days,
+        "rule": rule_desc,
+        "hotspots": hotspot_signals,
+        "current_start": current_start.strftime("%Y-%m-%d"),
+        "current_end": current_end.strftime("%Y-%m-%d"),
+        "comparison_start": comparison_start.strftime("%Y-%m-%d"),
+        "comparison_end": comparison_end.strftime("%Y-%m-%d"),
     }
-
-
-# Backward-compatible name used by older pages/scripts.
-def detect_hotspots(min_count=5, window_days=7, as_of=None, actor_user=None):
-    if actor_user is None:
-        raise PermissionError("An authenticated staff account is required for hotspot results.")
-    return detect_hotspot_signals(actor_user, min_count=min_count, window_days=window_days, as_of=as_of)
