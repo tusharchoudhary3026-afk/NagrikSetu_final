@@ -19,10 +19,7 @@ from core.ui import apply_demo_style, render_hero
 from core.geo import known_area_for_location, partial_geography_names
 from core.geo_ui import render_geography_picker
 from core.speech import validate_transcript_submission
-<<<<<<< HEAD
 from core.sarvam_speech import transcribe_audio
-=======
-from core.speech_component import speech_input
 from core.suggestions import selected_department
 
 
@@ -33,7 +30,6 @@ class _StoredUpload:
 
     def getvalue(self):
         return self._data
->>>>>>> d0cd91f9ec3528c5e1c941df23c8fdf5220e492d
 
 init_db()
 user = require_role("public")
@@ -49,7 +45,6 @@ with tab_submit:
     
     voice_enabled = feature_enabled("voice")
     if voice_enabled:
-<<<<<<< HEAD
         st.markdown("### 🎙️ Voice Intake (Powered by Sarvam AI)")
         st.caption("Record your complaint voice note in Hindi, English, or Hinglish.")
         
@@ -68,22 +63,6 @@ with tab_submit:
                             st.rerun()
                     except Exception as exc:
                         st.error(str(exc))
-
-=======
-        st.caption("Type your complaint or describe it by voice. Please check names, locations and numbers.")
-        consent = st.checkbox("I understand browser speech recognition may send audio to its provider; NagrikSetu does not store audio.",
-                              key="public-speech-consent")
-        with st.expander("Voice input (TRY) · optional", expanded=False):
-            st.caption("If voice input is unavailable, type your complaint in the box below. Speech is never submitted automatically.")
-            speech = speech_input(enabled=consent, key="public-complaint-speech", default=None)
-        if speech and speech.get("id") != st.session_state.get("public_last_speech_id"):
-            transcript = speech.get("transcript", "")
-            if transcript:
-                st.session_state["public_complaint_text"] = transcript
-                st.session_state["public_speech_transcript_pending"] = True
-                st.session_state["public_last_speech_id"] = speech.get("id")
-        speech_used = bool(st.session_state.get("public_speech_transcript_pending"))
->>>>>>> d0cd91f9ec3528c5e1c941df23c8fdf5220e492d
     with st.form("public_complaint"):
         text = st.text_area("What is the problem?", height=140,
                             max_chars=intake.MAX_COMPLAINT_CHARS,
@@ -99,12 +78,7 @@ with tab_submit:
             st.info("Secure photo upload is currently unavailable. You can still submit the complaint without photos.")
         if not photos_enabled:
             st.info("Photo evidence is disabled by configuration.")
-<<<<<<< HEAD
-        submitted = st.form_submit_button("Review and submit", type="primary", width="stretch")
-        
-=======
         submitted = st.form_submit_button("Review extracted details", type="primary", width="stretch")
->>>>>>> d0cd91f9ec3528c5e1c941df23c8fdf5220e492d
     if submitted:
         # A new intake must start with its own extracted values. Streamlit keeps
         # keyed widgets across reruns, which otherwise carries an old category
@@ -134,28 +108,6 @@ with tab_submit:
             if not rec.get("area_code"):
                 rec["missing_fields"] = ",".join(filter(None, [rec.get("missing_fields", ""), "service_area"]))
             route = router_baseline.route(text)
-<<<<<<< HEAD
-            rec["case_id"] = f"CASE-{uuid.uuid4().hex[:12].upper()}"
-            complaint_id = insert_public_submission(rec, route, submitted_by=user["id"])
-            attachment_warning = None
-            if attachments:
-                try:
-                    save_attachments(complaint_id, attachments, user["role"], actor_user=user)
-                except Exception:
-                    logging.getLogger(__name__).exception(
-                        "Photo storage failed after complaint %s was committed", rec["case_id"])
-                    attachment_warning = "The complaint was saved, but one or more photos could not be attached."
-                    st.session_state["public_pending_photo_upload"] = [
-                        {"name": str(getattr(item, "name", "photo")), "data": item.getvalue()}
-                        for item in attachments if item is not None
-                    ]
-            st.session_state["last_public_submission"] = {"case_id": rec["case_id"],
-                                                           "question": intake.clarification_question(rec),
-                                                           "area": rec.get("area_name"),
-                                                           "attachment_warning": attachment_warning,
-                                                           "complaint_id": complaint_id}
-            st.rerun()
-=======
             st.session_state.pop("last_public_submission", None)
             st.session_state["public_intake_preview"] = {
                 "rec": rec,
@@ -165,8 +117,6 @@ with tab_submit:
                 "uploads": [{"name": str(getattr(item, "name", "photo")), "data": item.getvalue()}
                             for item in (attachments or []) if item is not None],
             }
-            st.session_state["public_speech_transcript_pending"] = False
->>>>>>> d0cd91f9ec3528c5e1c941df23c8fdf5220e492d
         except ValueError as exc:
             st.error(str(exc))
         except Exception:
@@ -313,12 +263,6 @@ with tab_submit:
                         "complaint_id": complaint_id,
                     }
                     st.session_state.pop("public_intake_preview", None)
-                    st.session_state.pop("public-preview-confirmed", None)
-                    st.session_state.pop("public-preview-issue", None)
-                    st.session_state.pop("public-preview-location", None)
-                    st.session_state.pop("public-preview-action", None)
-                    for key in [key for key in st.session_state if key.startswith("public-preview-split-issue-")]:
-                        st.session_state.pop(key, None)
                     st.rerun()
                 except (ValueError, PermissionError) as exc:
                     st.error(str(exc))
@@ -327,12 +271,6 @@ with tab_submit:
                     st.error("The complaint could not be saved. Your text is still here; please retry.")
         if edit_col.button("Edit complaint details", key="public-preview-edit"):
             st.session_state.pop("public_intake_preview", None)
-            st.session_state.pop("public-preview-confirmed", None)
-            st.session_state.pop("public-preview-issue", None)
-            st.session_state.pop("public-preview-location", None)
-            st.session_state.pop("public-preview-action", None)
-            for key in [key for key in st.session_state if key.startswith("public-preview-split-issue-")]:
-                st.session_state.pop(key, None)
             st.rerun()
 
     last = st.session_state.get("last_public_submission")

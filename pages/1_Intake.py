@@ -9,12 +9,6 @@ from core.safety import assess_safety
 from core.explanation import generate_grounded_explanation
 from core.suggestions import selected_department
 from core.security import attachment_encryption_status
-<<<<<<< HEAD
-from core.suggestions import selected_department
-=======
-from core.speech import validate_transcript_submission
-from core.speech_component import speech_input
->>>>>>> d0cd91f9ec3528c5e1c941df23c8fdf5220e492d
 from core.ui import apply_demo_style, render_hero, require_permission
 from core.geo import staff_area_scope
 from core.sarvam_speech import transcribe_audio
@@ -70,14 +64,9 @@ else:
 if st.button("Process complaint", type="primary"):
     try:
         if not assigned_areas:
-<<<<<<< HEAD
             raise ValueError("Select a service area before using staff-assisted intake.")
         if not text or not text.strip():
             raise ValueError("Complaint text cannot be empty.")
-=======
-            raise ValueError("You need an approved service area before using staff-assisted intake.")
-        text = validate_transcript_submission(text, speech_used, transcript_confirmed)
->>>>>>> d0cd91f9ec3528c5e1c941df23c8fdf5220e492d
         rec = intake.process(text, channel, loc_hint)
         area = area_by_key[selected_area]
         rec.update({key: area[key] for key in ("state_code", "state_name", "city_code", "city_name",
@@ -86,12 +75,7 @@ if st.button("Process complaint", type="primary"):
         st.session_state["rec"] = rec
         st.session_state["split"] = splitter.propose_split(text)
         st.session_state["route"] = router_baseline.route(text)
-<<<<<<< HEAD
-        st.session_state["safety"] = flag_safety(text)
-=======
         st.session_state["safety"] = assess_safety(text)
-        st.session_state["speech_transcript_pending"] = False
->>>>>>> d0cd91f9ec3528c5e1c941df23c8fdf5220e492d
     except ValueError as exc:
         st.error(str(exc))
 
