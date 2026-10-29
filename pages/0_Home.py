@@ -4,21 +4,23 @@ from core.auth import require_login
 from core.db import fetch_all, init_db
 from core.portal import list_own_complaints
 from core.ui import apply_demo_style, render_hero
-from core.geo import (is_geography_admin, select_staff_location,
+from core.geo import (configure_staff_location, is_geography_admin,
                       staff_location_snapshot)
 from core.geo_ui import render_geography_picker
 from core.geo import STAFF_ROLES
 from core.staff_dashboard_ui import render_staff_dashboard
 
 
-def _render_area_selection(user, prefix):
+def _render_area_request(user, prefix):
     selected = render_geography_picker(prefix)
-    if st.session_state.pop(f"{prefix}-selected", False):
-        st.success("Area selected. Matching complaints are available now.")
-    if st.button("Show complaints for this area", key=f"{prefix}-select"):
+    request_reason = st.text_input("Reason for this assignment request", key=f"{prefix}-reason")
+    if st.button("Submit area access request", key=f"{prefix}-submit"):
         try:
-            select_staff_location(user, *selected)
-            st.session_state[f"{prefix}-selected"] = True
+            outcome = configure_staff_location(user, *selected, reason=request_reason)
+            if outcome["status"] == "approved":
+                st.success("This area is already verified in the protected allowlist.")
+            else:
+                st.success("Request recorded for an authorized administrator to review.")
             st.rerun()
         except (ValueError, PermissionError) as exc:
             st.error(str(exc))
@@ -84,7 +86,7 @@ else:
         location_state = staff_location_snapshot(user)
         if is_geography_admin(user.get("email", "")):
             st.page_link("pages/12_Area_Access_Admin.py", label="Review staff area-access requests", icon="📍")
-        st.subheader("Your selected service areas")
+        st.subheader("Your verified service areas")
         if location_state["assigned"]:
             if any(row["actor_email"] == "system:demo-admin" for row in location_state["assigned"]):
                 st.info("DEMO ACCOUNT — pre-approved synthetic assignment. Access covers all areas in Gwalior.")
@@ -92,16 +94,16 @@ else:
                            "Access source": "Self-selected" if row["actor_email"] == user["email"] else row["actor_email"],
                            "Record": row["reason"]}
                           for row in location_state["assigned"]], hide_index=True, width="stretch")
-            with st.expander("Select another area to view"):
-                _render_area_selection(user, "staff-area-request")
+            with st.expander("Request access to another service area"):
+                _render_area_request(user, "staff-area-request")
         else:
-            st.info("Choose the area you want to review. Matching complaints will appear as soon as you select it.")
-            st.subheader("Select an area to view complaints")
-            _render_area_selection(user, "staff-first-area-request")
+            st.warning("No service area is verified for this account. Complaint records remain hidden until an administrator approves an assignment.")
+            st.subheader("Request your service area")
+            st.caption("Select your assigned location. An authorized administrator must verify it before any complaint records are shown.")
+            _render_area_request(user, "staff-first-area-request")
         if location_state["pending"]:
-            st.caption(f"An older area request remains pending: {location_state['pending']['state_code']} / "
-                       f"{location_state['pending']['city_code']} / {location_state['pending']['area_code']}. "
-                       "It does not block areas you select now.")
+            st.info(f"Area request pending verification: {location_state['pending']['state_code']} / "
+                    f"{location_state['pending']['city_code']} / {location_state['pending']['area_code']}")
         if location_state["last_rejection"]:
             st.caption(f"Most recent request response: {location_state['last_rejection']['reason']}")
         render_staff_dashboard(user)

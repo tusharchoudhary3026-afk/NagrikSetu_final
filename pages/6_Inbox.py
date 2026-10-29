@@ -12,7 +12,7 @@ require_permission("can_audit")
 user = st.session_state["authenticated_user"]
 apply_demo_style()
 render_hero("Authorized staff view", "Complaint inbox",
-            "Cases within your selected service areas, with channel, language, and human-review status.")
+            "Cases within your approved service areas, with channel, language, and human-review status.")
 st.warning(SIM_LABEL)
 
 rows = scoped_complaints(user, include_unassigned=is_geography_admin(user.get("email", "")))

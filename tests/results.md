@@ -1,4 +1,4 @@
-# Acceptance test run 2026-10-29 16:57
+# Acceptance test run 2026-10-29 18:06
 
 | Test | Outcome |
 |---|---|
@@ -16,7 +16,7 @@
 | test_opening_protected_file_page_without_session_shows_sign_in_link | PASSED |
 | test_reviewer_can_open_the_role_filtered_navigation | PASSED |
 | test_demo_staff_home_shows_preapproved_city_assignment_without_warning | PASSED |
-| test_staff_can_select_area_and_see_complaints_without_admin_approval | PASSED |
+| test_non_demo_staff_area_request_stays_pending_until_admin_approval | PASSED |
 | test_each_demo_staff_role_sees_public_case_in_the_streamlit_staff_view | PASSED |
 | test_every_page_starts_headlessly_with_a_permitted_session | PASSED |
 | test_full_dataframe_fit_uses_training_split_only | PASSED |
@@ -98,6 +98,7 @@
 | test_public_portal_returns_only_the_owner_cases | PASSED |
 | test_public_submission_is_atomic_and_visible_after_area_approval | PASSED |
 | test_public_form_resolves_normalized_english_and_hindi_area_aliases_without_rewriting_location | PASSED |
+| test_citizen_confirms_and_can_correct_extracted_fields_before_any_database_write | PASSED |
 | test_public_submission_rolls_back_if_suggestion_or_ledger_write_fails | PASSED |
 | test_public_form_displays_error_and_saves_no_case_when_database_write_fails | PASSED |
 | test_location_normalization_is_separate_and_preserves_entered_value | PASSED |
@@ -126,6 +127,13 @@
 | test_location_assignment_history_is_append_only | PASSED |
 | test_staff_area_scope_cannot_be_forged_or_used_after_deactivation | PASSED |
 | test_area_revocation_is_append_only_and_not_reopened_by_allowlist_sync | PASSED |
+| test_reviewer_corrects_extracted_fields_in_staff_ui_with_append_only_provenance | PASSED |
+| test_extraction_correction_requires_reason_and_review_permission | PASSED |
+| test_legacy_ledger_rows_are_backfilled_once_and_verified | PASSED |
+| test_ledger_integrity_verification_reports_first_tampered_event | PASSED |
+| test_ledger_integrity_is_auditor_only_and_visible_in_staff_page | PASSED |
+| test_reviewer_saves_versioned_rubric_and_rules_drive_attention_flags | PASSED |
+| test_rubric_version_requires_permission_reason_and_valid_rules | PASSED |
 | test_operator_dashboard_is_department_filtered_and_service_rejects_cross_department | PASSED |
 | test_dispatch_and_resolve_are_explicit_append_only_actions | PASSED |
 | test_transfer_requires_reason_and_changes_operator_visibility | PASSED |

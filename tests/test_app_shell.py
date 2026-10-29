@@ -64,10 +64,10 @@ def test_demo_staff_home_shows_preapproved_city_assignment_without_warning(monke
     assert staff_location_snapshot(account)["assigned"][0]["area_name"] == "All areas (city-wide)"
 
 
-def test_staff_can_select_area_and_see_complaints_without_admin_approval(db):
+def test_non_demo_staff_area_request_stays_pending_until_admin_approval(db):
     account = _staff_account("browse-area@staff.example.test", "Browse Staff", "reviewer")
-    from core.db import fetch_all, insert_public_submission
-    from core.geo import is_geography_admin, staff_location_snapshot
+    from core.db import insert_public_submission
+    from core.geo import staff_location_snapshot
     from core.staff_dashboard import list_staff_cases
 
     complaint_id = insert_public_submission({
@@ -78,34 +78,24 @@ def test_staff_can_select_area_and_see_complaints_without_admin_approval(db):
         "city_name": "Gwalior", "area_code": "mp-gwalior-gole-ka-mandir", "area_name": "Gole Ka Mandir",
     }, {"top3": [{"dept": "Electricity Dept", "score": 0.9}], "evidence": {"matched": ["streetlight"]},
        "confidence": 0.9, "abstained": False})
-    assert not is_geography_admin(account["email"])
-
     root = Path(__file__).resolve().parent.parent
     app = AppTest.from_file(root / "app.py", default_timeout=30)
     app.session_state["authenticated_user"] = account
     app.run()
     assert not app.exception
-    assert any("Choose the area you want to review" in item.value for item in app.info)
+    assert any("No service area is verified" in item.value for item in app.warning)
     app.selectbox(key="staff-first-area-request-state").select_index(0).run()
     app.selectbox(key="staff-first-area-request-city-mp").select_index(0).run()
     app.selectbox(key="staff-first-area-request-area-mp-gwalior").select_index(1).run()
-    next(item for item in app.button if item.label == "Show complaints for this area").click().run()
+    app.text_input(key="staff-first-area-request-reason").set_value("Assigned area for staff review").run()
+    next(item for item in app.button if item.label == "Submit area access request").click().run()
 
     assert not app.exception
-    assert not any("No service area is verified" in item.value for item in app.warning)
-    assert any("Case review · CASE-SELF-SELECT-AREA" in item.value for item in app.subheader)
-    assert any("streetlight is not working" in item.value for item in app.markdown)
-    assigned = staff_location_snapshot(account)["assigned"]
-    assert [(item["state_code"], item["city_code"], item["area_code"]) for item in assigned] == [
-        ("mp", "mp-gwalior", "mp-gwalior-gole-ka-mandir")]
-    assert assigned[0]["actor_email"] == account["email"]
-    assert "no administrator approval required" in assigned[0]["reason"]
-    cases = {item["id"]: item for item in list_staff_cases(account)}
-    assert complaint_id in cases
-    assert cases[complaint_id]["original_text"] == "streetlight is not working"
-    assert cases[complaint_id]["location"] == "Gole Ka Mandir"
-    assert fetch_all("SELECT event_type FROM government_area_events WHERE user_id=?", (account["id"],)) == [
-        {"event_type": "approved"}]
+    assert any("Area request pending verification" in item.value for item in app.info)
+    assert staff_location_snapshot(account)["assigned"] == []
+    assert staff_location_snapshot(account)["pending"]["area_code"] == "mp-gwalior-gole-ka-mandir"
+    assert list_staff_cases(account) == []
+    assert not any("Case review · CASE-SELF-SELECT-AREA" in item.value for item in app.subheader)
 
 
 def test_each_demo_staff_role_sees_public_case_in_the_streamlit_staff_view(monkeypatch, db):
@@ -129,6 +119,8 @@ def test_each_demo_staff_role_sees_public_case_in_the_streamlit_staff_view(monke
     original = "the streetlight is not working in my area"
     portal.text_area[0].set_value(original)
     portal.form_submit_button[0].click().run()
+    portal.checkbox(key="public-preview-confirmed").set_value(True).run()
+    portal.button(key="public-preview-submit").click().run()
     assert not portal.exception
     case_id = portal.session_state["last_public_submission"]["case_id"]
     complaint = fetch_all("SELECT * FROM complaints WHERE case_id=?", (case_id,))[0]

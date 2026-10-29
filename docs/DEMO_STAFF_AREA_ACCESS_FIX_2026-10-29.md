@@ -1,7 +1,5 @@
 # Demo staff service-area access fix — 2026-10-29
 
-> **Policy update:** The administrator approval gate for staff area selection was removed afterward. This report remains accurate for the synthetic demo assignment described below; ordinary staff can now select a listed area directly. See [STAFF_AREA_SELF_SELECTION_2026-10-29.md](STAFF_AREA_SELF_SELECTION_2026-10-29.md).
-
 ## Root cause and phase 0 findings
 
 The empty staff interface was an authorization result. `core/geo.py::scoped_complaints` (line 473) builds the server-side list from the latest approved `government_area_events` rows; with no scope it returns no complaints. `core/geo.py::require_complaint_area_access` (line 407) independently rechecks the same scope for case reads and writes. Those checks run from staff dashboard and service methods, not just from a banner.

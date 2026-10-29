@@ -220,22 +220,6 @@ def configure_staff_location(user: dict, state_code: str, city_code: str, area_c
     return {"status": "pending", "request_id": request_id, **names}
 
 
-def select_staff_location(user: dict, state_code: str, city_code: str, area_code: str) -> dict:
-    """Immediately enable an authenticated staff account to view a selected area."""
-    if not user or user.get("role") not in STAFF_ROLES:
-        raise PermissionError("Only a signed-in staff account can select an area.")
-    identity = _verified_staff(user.get("id"), user.get("email"))
-    names = geography_names(state_code, city_code, area_code)
-    existing = staff_area_scope(identity["id"])
-    if any((item["state_code"], item["city_code"], item["area_code"])
-           == (state_code, city_code, area_code) for item in existing):
-        return {"status": "available", **names}
-    _append_event(identity["id"], state_code, city_code, area_code, "approved",
-                  identity["email"],
-                  f"Staff self-selected {names['area_name']} for complaint visibility; no administrator approval required.")
-    return {"status": "available", **names}
-
-
 def staff_location_snapshot(user: dict) -> dict:
     if not user or user.get("role") not in STAFF_ROLES:
         raise PermissionError("Government staff access is required.")

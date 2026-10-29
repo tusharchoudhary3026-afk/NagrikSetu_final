@@ -6,17 +6,28 @@ import streamlit as st
 
 from core.attachment import save_attachments, validate_attachments
 from core.auth import require_role
-from core import intake, router_baseline
+from core import intake, router_baseline, splitter
 from core.config import SIM_LABEL, feature_enabled
 from core.db import init_db, insert_public_submission
+from core.intake import normalize_location
 from core.portal import list_own_complaints
 from core.privacy import mask_text
+from core.safety import flag_safety
 from core.security import attachment_encryption_status
 from core.ui import apply_demo_style, render_hero
 from core.geo import known_area_for_location, partial_geography_names
 from core.geo_ui import render_geography_picker
 from core.speech import validate_transcript_submission
 from core.speech_component import speech_input
+
+
+class _StoredUpload:
+    def __init__(self, name, data):
+        self.name = name
+        self._data = data
+
+    def getvalue(self):
+        return self._data
 
 init_db()
 user = require_role("public")
@@ -61,7 +72,7 @@ with tab_submit:
             st.info("Secure photo upload is currently unavailable. You can still submit the complaint without photos.")
         if not photos_enabled:
             st.info("Photo evidence is disabled by configuration.")
-        submitted = st.form_submit_button("Review and submit", type="primary", width="stretch")
+        submitted = st.form_submit_button("Review extracted details", type="primary", width="stretch")
     if submitted:
         try:
             text = validate_transcript_submission(text, speech_used, transcript_confirmed)
@@ -82,34 +93,124 @@ with tab_submit:
             if not rec.get("area_code"):
                 rec["missing_fields"] = ",".join(filter(None, [rec.get("missing_fields", ""), "service_area"]))
             route = router_baseline.route(text)
-            rec["case_id"] = f"CASE-{uuid.uuid4().hex[:12].upper()}"
-            complaint_id = insert_public_submission(rec, route, submitted_by=user["id"])
-            attachment_warning = None
-            if attachments:
-                try:
-                    save_attachments(complaint_id, attachments, user["role"], actor_user=user)
-                except Exception:
-                    # The complaint itself is committed. Do not tell the resident it
-                    # failed (and invite duplicate submissions) when only a photo failed.
-                    logging.getLogger(__name__).exception(
-                        "Photo storage failed after complaint %s was committed", rec["case_id"])
-                    attachment_warning = "The complaint was saved, but one or more photos could not be attached."
-                    st.session_state["public_pending_photo_upload"] = [
-                        {"name": str(getattr(item, "name", "photo")), "data": item.getvalue()}
-                        for item in attachments if item is not None
-                    ]
-            st.session_state["last_public_submission"] = {"case_id": rec["case_id"],
-                                                           "question": intake.clarification_question(rec),
-                                                           "area": rec.get("area_name"),
-                                                           "attachment_warning": attachment_warning,
-                                                           "complaint_id": complaint_id}
+            st.session_state.pop("last_public_submission", None)
+            st.session_state["public_intake_preview"] = {
+                "rec": rec,
+                "route": route,
+                "split": splitter.propose_split(text),
+                "safety": flag_safety(text),
+                "uploads": [{"name": str(getattr(item, "name", "photo")), "data": item.getvalue()}
+                            for item in (attachments or []) if item is not None],
+            }
             st.session_state["public_speech_transcript_pending"] = False
-            st.rerun()
         except ValueError as exc:
             st.error(str(exc))
         except Exception:
             logging.getLogger(__name__).exception("Public complaint submission failed")
-            st.error("The complaint could not be saved. Please try again.")
+            st.error("The complaint details could not be prepared. Please check them and try again.")
+
+    preview = st.session_state.get("public_intake_preview")
+    if preview:
+        rec = preview["rec"]
+        st.subheader("Review extracted details before submission")
+        st.caption("Your original complaint remains unchanged. You can correct these extracted fields; a correction does not change the routing suggestion.")
+        st.markdown("**Original complaint text**")
+        st.write(mask_text(rec["original_text"]))
+        issue_options = ["unknown", *(category for category, _ in intake.ISSUE_CATEGORIES)]
+        if "public-preview-issue" not in st.session_state:
+            st.session_state["public-preview-issue"] = rec["issue"] if rec["issue"] in issue_options else "unknown"
+        if "public-preview-location" not in st.session_state:
+            st.session_state["public-preview-location"] = rec["location"] if rec["location"] != "unknown" else ""
+        action_options = ["unspecified", "repair", "clean", "clear", "inspect"]
+        if "public-preview-action" not in st.session_state:
+            st.session_state["public-preview-action"] = rec["requested_action"] or "unspecified"
+        issue = st.selectbox("Issue category", issue_options, key="public-preview-issue")
+        corrected_location = st.text_input("Street or nearby landmark", key="public-preview-location",
+                                           help="Leave blank if you do not know the location.")
+        action = st.selectbox("Requested action", action_options, key="public-preview-action")
+        st.caption(f"Detected language: {rec['language']} · channel: {rec['channel']}")
+        st.caption(f"Missing information: {rec.get('missing_fields') or 'None recorded'}")
+        question = intake.clarification_question(rec)
+        if question:
+            st.info(f"One helpful detail for staff: {question}")
+        if preview["route"]["abstained"]:
+            st.warning("No supported route was found. This case will wait in the human review queue.")
+        else:
+            st.markdown("**Routing suggestions · recommendation only**")
+            for suggestion in preview["route"]["top3"]:
+                evidence = preview["route"]["evidence"].get(suggestion["dept"], [])
+                st.write(f"{suggestion['dept']} · evidence: {evidence}")
+        if preview["split"]["is_compound"]:
+            st.info("This may contain more than one issue. Staff will review the proposed split; no automatic split occurs.")
+        if preview["safety"]["flagged"]:
+            st.warning("This report matches a safety-review rule and will be shown to staff for human attention.")
+        confirmed = st.checkbox("I reviewed the extracted details and confirm they are ready to submit.",
+                                key="public-preview-confirmed")
+        confirm_col, edit_col = st.columns(2)
+        if confirm_col.button("Confirm and submit complaint", type="primary", key="public-preview-submit"):
+            if not confirmed:
+                st.error("Confirm the extracted details before submitting.")
+            else:
+                try:
+                    final_rec = dict(rec)
+                    final_rec["issue"] = None if issue == "unknown" else issue
+                    final_rec["location"] = (corrected_location if corrected_location.strip() else
+                                              (rec.get("area_name") if rec.get("area_code") else "unknown"))
+                    final_rec["location_normalized"] = normalize_location(final_rec["location"])
+                    final_rec["requested_action"] = None if action == "unspecified" else action
+                    missing = []
+                    if final_rec["location"] == "unknown":
+                        missing.append("location")
+                    if not final_rec["issue"]:
+                        missing.append("issue")
+                    if not final_rec.get("area_code"):
+                        missing.append("service_area")
+                    final_rec["missing_fields"] = ",".join(missing)
+                    edits = {}
+                    for field in ("issue", "location", "requested_action"):
+                        before, after = rec.get(field), final_rec.get(field)
+                        if before != after:
+                            edits[field] = {"extracted": before, "confirmed": after}
+                    final_rec["extraction_corrections"] = edits
+                    final_rec["case_id"] = f"CASE-{uuid.uuid4().hex[:12].upper()}"
+                    complaint_id = insert_public_submission(final_rec, preview["route"],
+                                                            submitted_by=user["id"])
+                    attachment_warning = None
+                    if preview["uploads"]:
+                        try:
+                            copied_uploads = [_StoredUpload(item["name"], item["data"])
+                                              for item in preview["uploads"]]
+                            save_attachments(complaint_id, copied_uploads, user["role"], actor_user=user)
+                        except Exception:
+                            logging.getLogger(__name__).exception(
+                                "Photo storage failed after complaint %s was committed", final_rec["case_id"])
+                            attachment_warning = "The complaint was saved, but one or more photos could not be attached."
+                            st.session_state["public_pending_photo_upload"] = preview["uploads"]
+                    st.session_state["last_public_submission"] = {
+                        "case_id": final_rec["case_id"],
+                        "question": intake.clarification_question(final_rec),
+                        "area": final_rec.get("area_name"),
+                        "attachment_warning": attachment_warning,
+                        "complaint_id": complaint_id,
+                    }
+                    st.session_state.pop("public_intake_preview", None)
+                    st.session_state.pop("public-preview-confirmed", None)
+                    st.session_state.pop("public-preview-issue", None)
+                    st.session_state.pop("public-preview-location", None)
+                    st.session_state.pop("public-preview-action", None)
+                    st.rerun()
+                except (ValueError, PermissionError) as exc:
+                    st.error(str(exc))
+                except Exception:
+                    logging.getLogger(__name__).exception("Public complaint confirmation failed")
+                    st.error("The complaint could not be saved. Your text is still here; please retry.")
+        if edit_col.button("Edit complaint details", key="public-preview-edit"):
+            st.session_state.pop("public_intake_preview", None)
+            st.session_state.pop("public-preview-confirmed", None)
+            st.session_state.pop("public-preview-issue", None)
+            st.session_state.pop("public-preview-location", None)
+            st.session_state.pop("public-preview-action", None)
+            st.rerun()
 
     last = st.session_state.get("last_public_submission")
     if last:

@@ -3,9 +3,9 @@
 ## How access is granted
 
 1. A resident or staff member authenticates using the existing sign-in flow.
-2. A staff user selects State → City/district → Area on the overview page and clicks **Show complaints for this area**. The selected area is available immediately; no administrator approval is required.
-3. Each new selection appends an active area event to `government_area_events`, recording the staff identity, selected location, timestamp, and that it was self-selected. Selecting an already active area does not add a duplicate row.
-4. A staff member can select additional areas from the overview page. A configured geography administrator can still revoke an assignment; revocation is recorded as a new append-only event. The administrator flow remains available for legacy pending requests.
+2. Ordinary staff select State → City/district → Area on the overview page, enter a reason and submit an assignment request. Matching complaints remain hidden until a configured geography administrator approves it.
+3. Approval and revocation append events to `government_area_events`, recording staff/admin identity, location, timestamp and reason. Selecting a scope already granted through the protected allowlist returns the existing approved scope.
+4. When `NAGRIKSETU_DEMO_MODE=1` and `NYAYAFLOW_SEED_DEMO_STAFF=1`, only the exact synthetic operator01, reviewer01 and auditor01 accounts may receive the labelled city-wide Gwalior grant. Both flags default off; ordinary staff continue to require administrator approval.
 
 Set `NYAYAFLOW_GEO_ADMIN_EMAILS` to a comma-separated list of approved administrator emails in the trusted deployment environment. Do not commit real staff emails to the repository. `data/geo_admin_allowlist.csv` is a local prototype option and must be protected in deployments.
 

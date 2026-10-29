@@ -22,7 +22,8 @@ GOV_ALLOWLIST = ROOT / "data" / "gov_allowlist.csv"
 
 REASON_CODES = ["wrong_category", "missing_info", "overlapping_ownership", "duplicate_report", "other"]
 REVIEW_ACTIONS = ["accept", "edit", "clarify", "escalate", "transfer"]
-REASON_REQUIRED = {"edit", "escalate", "transfer", "duplicate_linked", "duplicate_unlinked"}
+REASON_REQUIRED = {"edit", "escalate", "transfer", "duplicate_linked", "duplicate_unlinked",
+                   "extraction_corrected"}
 
 # Team sets this on a validation split (see scripts/evaluate.py). Placeholder only.
 CONFIDENCE_THRESHOLD = 0.40

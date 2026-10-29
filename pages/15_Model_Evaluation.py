@@ -1,9 +1,13 @@
+import json
+
 import pandas as pd
 import streamlit as st
 
+from core.auth import verify_permission
 from core.config import SIM_LABEL, feature_enabled
 from core.corrections import load_verified_corrections
 from core.retraining import run_offline_retraining_experiment
+from core.safety import load_rubric, save_rubric_version
 from core.ui import apply_demo_style, render_hero, require_permission
 from core.verify_split import verify_frozen_test_split, verify_split_leakage
 
@@ -15,6 +19,27 @@ apply_demo_style()
 render_hero("Technical review", "Model evaluation", "Run an offline candidate comparison; no model is saved or deployed by this page.")
 st.warning(SIM_LABEL)
 st.caption("TRY · Offline retraining quality is not established. Evaluation uses the same frozen hold-out set and never tunes on it.")
+
+rubric = load_rubric()
+st.subheader("Safety review rubric")
+st.caption(f"Team-proposed version {rubric.get('version', 1)} · {rubric.get('status', 'TEAM-PROPOSED')} · flags request human attention only.")
+st.json({"rules": rubric["rules"]})
+if verify_permission(user.get("role"), "can_manage_corrections"):
+    with st.expander("Create a new rubric version"):
+        rubric_json = st.text_area("Edit rules as JSON", value=json.dumps(rubric["rules"],
+                                                                           ensure_ascii=False, indent=2),
+                                   height=260, key="safety-rubric-json")
+        rubric_reason = st.text_input("Reason for this version (required)", key="safety-rubric-reason")
+        if st.button("Save new team-proposed rubric version", key="save-safety-rubric"):
+            try:
+                rules = json.loads(rubric_json)
+                version = save_rubric_version(user, rules, rubric_reason)
+                st.success(f"Safety rubric version {version} saved to append-only history.")
+                st.rerun()
+            except (ValueError, PermissionError, json.JSONDecodeError) as exc:
+                st.error(str(exc))
+else:
+    st.caption("Rubric configuration is read-only for this role.")
 
 frozen = verify_frozen_test_split()
 leakage = verify_split_leakage()

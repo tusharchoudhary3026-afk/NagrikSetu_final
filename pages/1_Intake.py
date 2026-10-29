@@ -56,7 +56,7 @@ else:
 if st.button("Process complaint", type="primary"):
     try:
         if not assigned_areas:
-            raise ValueError("Select a service area before using staff-assisted intake.")
+            raise ValueError("You need an approved service area before using staff-assisted intake.")
         text = validate_transcript_submission(text, speech_used, transcript_confirmed)
         rec = intake.process(text, channel, loc_hint)
         area = area_by_key[selected_area]
@@ -85,7 +85,8 @@ if "rec" in st.session_state:
 
     safety = st.session_state.get("safety", {"flagged": False})
     if safety["flagged"]:
-        st.error(f"Human attention flag · {safety['rubric_status']}: " + "; ".join(x["label"] for x in safety["flags"]))
+        st.error(f"Human attention flag · rubric v{safety.get('rubric_version', 1)} · {safety['rubric_status']}: " +
+                 "; ".join(x["label"] for x in safety["flags"]))
         st.caption(safety["message"])
 
     st.subheader("Routing suggestions (keyword baseline)")
