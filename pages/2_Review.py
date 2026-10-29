@@ -16,6 +16,7 @@ from core.splitter import confirm_split, merge_back
 from core.intake import ISSUE_CATEGORIES, process as process_intake
 from core.router_baseline import route as route_baseline
 from core.suggestions import selected_department
+from core.safety import assess_safety, record_safety_decision
 from core.ui import require_permission
 from core.geo import is_geography_admin, scoped_complaints
 
@@ -40,6 +41,48 @@ st.caption(f"Service area: {area_label or 'Unassigned · restricted manual-revie
            f"Extracted issue: {pick.get('issue') or 'unknown'} · "
            f"Requested action: {pick.get('requested_action') or 'unspecified'} · "
            f"Missing fields: {pick.get('missing_fields') or 'none recorded'}")
+
+safety = assess_safety(pick["original_text"])
+st.subheader("Safety triage · reviewer decision required")
+st.caption("Prototype rule recommendation only. It does not certify safety, assign ownership, or trigger an emergency response.")
+if safety["safety_flag"] or safety["requires_human_review"]:
+    st.warning(f"{safety['severity'].replace('_', ' ').title()} · {safety['risk_score']}/100 · "
+               f"{safety['context_status'].replace('_', ' ')}")
+else:
+    st.info("No configured active hazard phrase was matched. This does not prove the location is safe.")
+st.write({"Categories": safety["hazard_categories"], "Supporting words from original complaint": safety["evidence"],
+          "Reasons": safety["reasons"], "Rule IDs": safety["rule_ids"],
+          "Rule version": safety["rule_version"], "Configured prototype thresholds": safety["threshold_status"]})
+action_labels = {"confirm": "Confirm safety concern", "change_severity": "Change severity",
+                 "false_positive": "Mark as false positive", "resolved": "Mark as resolved",
+                 "request_information": "Request more information", "escalate": "Escalate for appropriate action"}
+safety_action = st.selectbox("Safety review action", list(action_labels),
+                             format_func=lambda value: action_labels[value], key=f"safety-action-{pick['id']}")
+safety_severity = st.selectbox("Reviewer severity", ["normal_queue", "attention_recommended",
+                                    "priority_safety_review", "urgent_review", "needs_human_verification"],
+                               index=["normal_queue", "attention_recommended", "priority_safety_review",
+                                      "urgent_review", "needs_human_verification"].index(safety["severity"]),
+                               format_func=lambda value: value.replace("_", " ").title(),
+                               key=f"safety-severity-{pick['id']}")
+safety_reason = st.text_input("Reason for safety review decision (required)", key=f"safety-reason-{pick['id']}")
+if st.button("Save safety review decision", key=f"save-safety-{pick['id']}"):
+    try:
+        record_safety_decision(pick["id"], user, safety_action, safety_reason,
+                               severity=safety_severity if safety_action == "change_severity" else None)
+        st.success("Safety decision appended to the case ledger. The original system assessment is preserved.")
+        st.rerun()
+    except (ValueError, PermissionError) as exc:
+        st.error(str(exc))
+
+safety_history = fetch_all("SELECT event_type,actor,reason,details,created_at FROM ledger "
+                           "WHERE complaint_id=? AND event_type LIKE 'safety_review_%' ORDER BY id", (pick["id"],))
+if safety_history:
+    st.markdown("**Previous safety review decisions**")
+    latest_safety_review = safety_history[-1]
+    st.info(f"Latest recorded outcome: {latest_safety_review['event_type'].replace('safety_review_', '').replace('_', ' ')} · "
+            f"{latest_safety_review['created_at']} · {latest_safety_review['actor']}")
+    for item in safety_history:
+        st.caption(f"{item['created_at']} · {item['actor']} · {item['event_type'].replace('safety_review_', '').replace('_', ' ')} · {item['reason']}")
 
 sugs = fetch_all("SELECT * FROM suggestions WHERE complaint_id=? ORDER BY id DESC LIMIT 1", (pick["id"],))
 suggested = None
@@ -103,6 +146,11 @@ if pending_splits and not children:
                 st.warning("No supported department suggestion for this edited text; manual review remains required.")
             else:
                 st.write(f"Department suggestion: {dept} · evidence: {route['evidence'].get(dept, [])}")
+                try:
+                    explanation = generate_grounded_explanation(snippet, dept)
+                    st.caption(f"Responsibility source: {explanation['rule_source']} · {explanation['verification']}")
+                except ValueError as exc:
+                    st.caption(f"No responsibility-table explanation matched: {exc}")
                 choices = [item["dept"] for item in route.get("top3", [])]
                 if len(choices) > 1:
                     selected = st.selectbox("Reviewer-adjusted suggestion (evidence-backed)", choices,
@@ -113,6 +161,13 @@ if pending_splits and not children:
                         ranked.sort(key=lambda item: item["dept"] != selected)
                         route["top3"] = ranked
                         route["confidence"] = ranked[0]["score"]
+            for conflict in part.get("ownership_conflicts", []):
+                st.info(f"Possible ownership overlap: {conflict['owner']} / {conflict['overlap_owner']} · "
+                        f"{conflict['verification']} · {conflict['source']}")
+            part_safety = assess_safety(snippet)
+            if part_safety["safety_flag"]:
+                st.warning(f"Sub-issue safety suggestion: {part_safety['severity'].replace('_', ' ').title()} · "
+                           f"support: {part_safety['evidence']}")
             edited_parts.append({**part, "text": snippet, "issue": issue, "suggestion": route})
     added_text = st.text_input("Add a sub-issue (optional; must be copied exactly from the original text)",
                                key=f"review-split-added-{pick['id']}")

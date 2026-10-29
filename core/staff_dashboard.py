@@ -13,7 +13,7 @@ from .db import fetch_all, get_conn
 from .geo import is_demo_citywide_user, is_geography_admin, scoped_complaints
 from .intake import normalize_location
 from .ownership import check_suggestions, detect_bounce, repeat_reassignment
-from .safety import flag_safety
+from .safety import assess_safety
 from .suggestions import selected_department
 
 DEPARTMENTS = {
@@ -130,7 +130,7 @@ def _load_scoped_rows(actor):
             status = "new"
         else:
             status = "pending"
-        safety = flag_safety(row.get("original_text") or "")
+        safety = assess_safety(row.get("original_text") or "")
         overlaps = check_suggestions([item.get("dept", "") for item in top3], row.get("original_text") or "")
         enriched = dict(row)
         enriched.update({
@@ -369,7 +369,7 @@ def get_staff_case_detail(user, complaint_id):
             "current_department": case["current_department"], "uncertain": case["uncertain"],
             "split_status": case.get("split_status"),
             "routing_history": evidence, "ownership_conflicts": conflicts,
-            "safety": flag_safety(complaint["original_text"]), "duplicates": duplicates,
+            "safety": assess_safety(complaint["original_text"]), "duplicates": duplicates,
             "confirmed_subissues": subissues,
             "open_challenges": case["open_challenges"], "timeline": events,
             "bounce_warning": bounce, "repeat_reassignment": repeated,

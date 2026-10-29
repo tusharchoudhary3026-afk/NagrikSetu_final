@@ -256,6 +256,15 @@ def persist_confirmed_split(conn, parent_id: int, case_id: str, parts: list[dict
                      (child_id, "suggested", "system", selected_department(result),
                       json.dumps({"split_parent_id": parent_id, "abstained": bool(result.get("abstained", True)),
                                   "extracted_issue_evidence": rec.get("issue_evidence", [])})))
+        from .safety import assess_safety
+        safety = assess_safety(text)
+        conn.execute("INSERT INTO ledger (complaint_id,event_type,actor,details) VALUES (?,?,?,?)",
+                     (child_id, "safety_assessment_generated", "system",
+                      json.dumps({key: safety.get(key) for key in
+                                  ("safety_flag", "risk_score", "severity", "hazard_categories", "evidence",
+                                   "reasons", "rule_ids", "context_status", "requires_human_review",
+                                   "critical_override", "rule_version", "threshold_status")},
+                                 ensure_ascii=False, sort_keys=True)))
     if write_parent_event:
         conn.execute("INSERT INTO ledger (complaint_id,event_type,actor,details) VALUES (?,?,?,?)",
                      (parent_id, "split_confirmed", actor_email or actor_role,

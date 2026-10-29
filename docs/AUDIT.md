@@ -62,7 +62,7 @@ Audit date: 2026-10-28. Source: the user's updated feature-scope PDF and final-r
 | 37j | Configurable threshold tuned only on dev and frozen test | `scripts/evaluate_duplicates.py`, config/manifest | WORKS | evaluator verifies split hash and dev hash | Threshold has low recall; see report |
 | 45 | Editable team-proposed safety rubric | `data/safety_rules.json`, `core/safety.py` | WORKS | rubric tests | Official review not obtained |
 | 46 | Send safety flags to human review | `core/safety.py`, review queue | WORKS | AT-05 and queue tests | Queue operations need pilot validation |
-| 47 | Versioned rubric configuration | `data/safety_rules.json` | PARTIAL | config-driven rule tests | Version history/edit UI not implemented |
+| 47 | Versioned rubric configuration | `data/safety_rules.json`, `core/safety.py`, `safety_rubric_versions` | WORKS | rubric versioning tests | Team-proposed only; no official review |
 | 48 | Calm, low-volume hazard cases | `data/safety_test_cases.csv` | WORKS | safety test set and safety tests | 12 synthetic cases are not independent labels |
 | 49 | Sentiment urgency scoring | — | REMOVED | no sentiment score path | Explicitly excluded for safety |
 | 50 | Accept/edit/clarify/escalate review actions | `core/reviews.py`, review UI | WORKS | workflow service tests | None for prototype |

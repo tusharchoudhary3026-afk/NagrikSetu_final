@@ -218,6 +218,16 @@ def insert_public_submission(rec: dict, route: dict, submitted_by: int | None = 
         conn.execute(
             "INSERT INTO ledger (complaint_id,event_type,actor,suggested_dept,details) VALUES(?,?,?,?,?)",
             (complaint_id, "suggested", "system", suggestion, json.dumps(details)))
+        from .safety import assess_safety
+        safety = assess_safety(rec.get("original_text") or "")
+        conn.execute(
+            "INSERT INTO ledger (complaint_id,event_type,actor,details) VALUES(?,?,?,?)",
+            (complaint_id, "safety_assessment_generated", "system",
+             json.dumps({key: safety.get(key) for key in
+                         ("safety_flag", "risk_score", "severity", "hazard_categories", "evidence",
+                          "reasons", "rule_ids", "context_status", "requires_human_review",
+                          "critical_override", "rule_version", "threshold_status")}, ensure_ascii=False,
+                        sort_keys=True)))
         if split_proposal and split_proposal.get("is_compound"):
             proposal_json = json.dumps(split_proposal, ensure_ascii=False, sort_keys=True)
             conn.execute(

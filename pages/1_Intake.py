@@ -5,7 +5,9 @@ from core import intake, ownership, router_baseline, splitter
 from core.attachment import save_attachment
 from core.config import SIM_LABEL, feature_enabled
 from core.db import init_db, insert_public_submission
-from core.safety import flag_safety
+from core.safety import assess_safety
+from core.explanation import generate_grounded_explanation
+from core.suggestions import selected_department
 from core.security import attachment_encryption_status
 from core.speech import validate_transcript_submission
 from core.speech_component import speech_input
@@ -64,7 +66,7 @@ if st.button("Process complaint", type="primary"):
         st.session_state["rec"] = rec
         st.session_state["split"] = splitter.propose_split(text)
         st.session_state["route"] = router_baseline.route(text)
-        st.session_state["safety"] = flag_safety(text)
+        st.session_state["safety"] = assess_safety(text)
         st.session_state["speech_transcript_pending"] = False
     except ValueError as exc:
         st.error(str(exc))
@@ -83,9 +85,11 @@ if "rec" in st.session_state:
 
     safety = st.session_state.get("safety", {"flagged": False})
     if safety["flagged"]:
-        st.error(f"Human attention flag · rubric v{safety.get('rubric_version', 1)} · {safety['rubric_status']}: " +
-                 "; ".join(x["label"] for x in safety["flags"]))
-        st.caption(safety["message"])
+        st.error(f"{safety['severity'].replace('_', ' ').title()} · score {safety['risk_score']}/100 · "
+                 f"human review required · rules {', '.join(safety['rule_ids'])}")
+        st.write({"Hazard categories": safety["hazard_categories"], "Evidence": safety["evidence"],
+                  "Reasons": safety["reasons"], "Context": safety["context_status"]})
+        st.caption(safety["message"] + " " + str(safety.get("threshold_status", "")))
 
     st.subheader("Routing suggestions (keyword baseline)")
     if rt["abstained"]:
@@ -100,7 +104,28 @@ if "rec" in st.session_state:
     st.write(sp["note"])
     if sp["is_compound"]:
         for part in sp["parts"]:
-            st.write(f"- {part['text']} → {[x['dept'] for x in part['suggestion']['top3'][:1]]}")
+            with st.container(border=True):
+                st.markdown(f"**{part['issue']}** · {part['text']}")
+                part_route = part["suggestion"]
+                dept = selected_department(part_route)
+                if dept:
+                    evidence = part_route.get("evidence", {}).get(dept, [])
+                    st.write(f"Department suggestion: {dept} · supporting words: {evidence}")
+                    try:
+                        explanation = generate_grounded_explanation(part["text"], dept)
+                        st.caption(f"Responsibility source: {explanation['rule_source']} · "
+                                   f"{explanation['verification']}")
+                    except ValueError as exc:
+                        st.caption(f"No responsibility-table explanation matched: {exc}")
+                else:
+                    st.warning("No supported department suggestion for this issue; human review is needed.")
+                part_safety = assess_safety(part["text"])
+                if part_safety["safety_flag"]:
+                    st.warning(f"Issue safety suggestion: {part_safety['severity'].replace('_', ' ').title()} · "
+                               f"evidence: {part_safety['evidence']}")
+                for conflict in part.get("ownership_conflicts", []):
+                    st.info(f"Possible ownership overlap: {conflict['owner']} / {conflict['overlap_owner']} · "
+                            f"{conflict['verification']} · {conflict['source']}")
     confirm_split = False
     if sp["is_compound"] and user["role"] == "government":
         confirm_split = st.checkbox("I reviewed and confirm these proposed sub-issues")

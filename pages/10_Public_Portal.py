@@ -12,7 +12,8 @@ from core.db import init_db, insert_public_submission
 from core.intake import normalize_location
 from core.portal import list_own_complaints, list_own_split_children
 from core.privacy import mask_text
-from core.safety import flag_safety
+from core.safety import assess_safety
+from core.explanation import generate_grounded_explanation
 from core.security import attachment_encryption_status
 from core.ui import apply_demo_style, render_hero
 from core.geo import known_area_for_location, partial_geography_names
@@ -110,7 +111,7 @@ with tab_submit:
                 "rec": rec,
                 "route": route,
                 "split": splitter.propose_split(text),
-                "safety": flag_safety(text),
+                "safety": assess_safety(text),
                 "uploads": [{"name": str(getattr(item, "name", "photo")), "data": item.getvalue()}
                             for item in (attachments or []) if item is not None],
             }
@@ -159,6 +160,16 @@ with tab_submit:
                         dept = selected_department(route)
                         evidence = route["evidence"].get(dept, [])
                         st.write(f"Department suggestion: **{dept}** · evidence in this text: {evidence}")
+                        try:
+                            explanation = generate_grounded_explanation(part["text"], dept)
+                            st.caption(f"Responsibility source: {explanation['rule_source']} · "
+                                       f"{explanation['verification']}")
+                        except ValueError as exc:
+                            st.caption(f"No responsibility-table explanation matched: {exc}")
+                    part_safety = assess_safety(part["text"])
+                    if part_safety["safety_flag"]:
+                        st.warning(f"Issue safety suggestion: {part_safety['severity'].replace('_', ' ').title()} · "
+                                   f"evidence: {part_safety['evidence']}")
                     for overlap in part.get("ownership_conflicts", []):
                         st.warning(f"Possible ownership overlap: {overlap['owner']} / {overlap['overlap_owner']} · "
                                    f"{overlap['verification']} · {overlap['source']}")
@@ -186,8 +197,12 @@ with tab_submit:
             for overlap in preview["split"].get("ownership_conflicts", []):
                 st.warning(f"Possible ownership overlap: {overlap['owner']} / {overlap['overlap_owner']} · "
                            f"{overlap['verification']} · {overlap['source']}")
-        if preview["safety"]["flagged"]:
-            st.warning("This report matches a safety-review rule and will be shown to staff for human attention.")
+        if preview["safety"]["safety_flag"]:
+            assessment = preview["safety"]
+            st.warning(f"Safety triage suggestion: {assessment['severity'].replace('_', ' ').title()} · "
+                       f"{assessment['risk_score']}/100. Staff must review; this does not certify safety.")
+            st.write({"Possible hazard categories": assessment["hazard_categories"],
+                      "Matched words": assessment["evidence"], "Rule IDs": assessment["rule_ids"]})
         confirmed = st.checkbox("I reviewed the extracted details and confirm they are ready to submit.",
                                 key="public-preview-confirmed")
         confirm_col, edit_col = st.columns(2)

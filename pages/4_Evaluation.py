@@ -19,9 +19,12 @@ st.caption("Baseline on the frozen test split. Numerator/denominator reported; s
 st.subheader("Safety rubric sanity checks")
 safety = evaluate_safety_rubric()
 st.write({"label": safety["status_label"], "total": safety["total"],
+          "precision": (f"{safety['true_positive']}/{safety['precision_denominator']}"
+                        if safety["precision_denominator"] else "not measurable"),
           "recall": f"{safety['true_positive']}/{safety['positive_denominator']}",
           "false positives": f"{safety['false_positive']}/{safety['negative_denominator']}",
-          "by language": safety["by_language"]})
+          "false negatives": safety["false_negative"], "by language": safety["by_language"],
+          "real-world evaluation": safety["real_world_evaluation"]})
 st.caption(safety["limitation"])
 
 st.subheader("Compound complaint splitter · SYNTHETIC")
