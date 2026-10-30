@@ -25,6 +25,19 @@ apply_demo_style()
 render_hero("Complaint intake", "Complain here", "Capture the original report, inspect suggestions, and save it for a person to review.")
 st.warning(SIM_LABEL)
 
+# Demo Scenarios Quick-Fill
+st.markdown("##### ⚡ Quick Demo Scenarios")
+scen_col1, scen_col2, scen_col3 = st.columns(3)
+if scen_col1.button("⚠️ Scenario 1: Hazard Wire", use_container_width=True):
+    st.session_state["intake_text"] = "High tension electric wire has snapped near the primary school gate and is sparking on the road. Extremely dangerous!"
+    st.rerun()
+if scen_col2.button("✂️ Scenario 2: Compound Split", use_container_width=True):
+    st.session_state["intake_text"] = "Thatipur main road par itne bade gaddhe hain ki bike phisalti hai, aur sath hi gali ki streetlight bhi 4 din se band padi hai."
+    st.rerun()
+if scen_col3.button("❓ Scenario 3: Vague / Abstain", use_container_width=True):
+    st.session_state["intake_text"] = "Mere ghar ke paas bohot zyada pareshani ho rahi hai, please jaldi aakar dekhiye."
+    st.rerun()
+
 # Sarvam AI Voice Intake Section
 if feature_enabled("voice"):
     st.markdown("### 🎙️ Voice Intake (Powered by Sarvam AI)")

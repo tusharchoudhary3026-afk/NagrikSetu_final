@@ -1,9 +1,14 @@
-[client]
-toolbarMode = "minimal"
+[server]
+enableCORS = false
+enableXsrfProtection = true
+headless = true
+
+[browser]
+gatherUsageStats = false
 
 [theme]
-base = "light"
-primaryColor = "#326D57"
+primaryColor = "#237A52"
 backgroundColor = "#F7F8F6"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#172B23"
+font = "sans serif"

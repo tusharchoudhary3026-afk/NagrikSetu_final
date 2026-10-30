@@ -1,3 +1,4 @@
+import difflib
 import streamlit as st
 
 from core.config import SIM_LABEL
@@ -6,6 +7,26 @@ from core.duplicates import DECISION_REASON_CODES, find_candidates, record_decis
 from core.geo import is_geography_admin, scoped_complaints
 from core.privacy import mask_text
 from core.ui import apply_demo_style, render_hero, require_permission
+
+
+def render_word_diff(text1: str, text2: str) -> tuple[str, str]:
+    """Return inline HTML with differing tokens highlighted."""
+    words1 = text1.split()
+    words2 = text2.split()
+    matcher = difflib.SequenceMatcher(None, words1, words2)
+    h1, h2 = [], []
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            h1.extend(words1[i1:i2])
+            h2.extend(words2[j1:j2])
+        elif tag in ("replace", "delete"):
+            h1.append(f"<span style='background-color: #FDECEC; color: #B42318; padding: 1px 4px; border-radius: 4px;'>{' '.join(words1[i1:i2])}</span>")
+            if tag == "replace":
+                h2.append(f"<span style='background-color: #E6F4EC; color: #1F6B48; padding: 1px 4px; border-radius: 4px;'>{' '.join(words2[j1:j2])}</span>")
+        elif tag == "insert":
+            h2.append(f"<span style='background-color: #E6F4EC; color: #1F6B48; padding: 1px 4px; border-radius: 4px;'>{' '.join(words2[j1:j2])}</span>")
+    return " ".join(h1), " ".join(h2)
+
 
 init_db()
 user = require_permission("can_review")
@@ -71,15 +92,20 @@ if not candidates:
 for candidate in candidates:
     with st.container(border=True):
         st.markdown(f"### {candidate['case_id']} · {candidate['candidate_outcome']}")
+        
+        # Word difference comparison
+        diff1, diff2 = render_word_diff(mask_text(selected["original_text"]), mask_text(candidate["original_text"]))
         left, right = st.columns(2)
-        left.markdown("**Selected complaint**")
-        left.write(mask_text(selected["original_text"]))
+        left.markdown("**Selected complaint (Diff)**")
+        left.markdown(f"<div style='line-height: 1.6;'>{diff1}</div>", unsafe_allow_html=True)
         left.caption(f"{selected.get('channel') or 'unknown'} · {selected.get('language') or 'unknown'} · "
                      f"{selected.get('location') or 'unknown'}")
-        right.markdown("**Candidate complaint**")
-        right.write(mask_text(candidate["original_text"]))
+        
+        right.markdown(f"**Candidate complaint (Diff)**")
+        right.markdown(f"<div style='line-height: 1.6;'>{diff2}</div>", unsafe_allow_html=True)
         right.caption(f"{candidate.get('channel') or 'unknown'} · {candidate.get('language') or 'unknown'} · "
                       f"{candidate.get('location') or 'unknown'}")
+        
         st.write({"similarity signal": candidate["score"], "text similarity": candidate["text_sim"],
                   "shared terms": candidate["shared_terms"],
                   "shared issue labels": candidate["shared_issue_labels"],

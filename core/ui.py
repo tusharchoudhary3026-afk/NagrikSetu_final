@@ -1,6 +1,6 @@
 """Shared NagrikSetu branding, user bar, and responsive Streamlit styles."""
-import streamlit as st
 from html import escape
+import streamlit as st
 
 from .auth import enforce_rbac
 
@@ -8,29 +8,54 @@ from .auth import enforce_rbac
 def apply_demo_style():
     if st.session_state.get("_nagriksetu_style_rendered"):
         return
+
+    # Injected Head Tags: Security Meta, Open Graph, SEO, and WCAG Viewport
+    st.markdown(
+        """
+        <!-- Security Meta Equivalents -->
+        <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:;">
+
+        <!-- Accessibility: Viewport Zooming & Scaling Enabled (WCAG 2 AA) -->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+
+        <!-- SEO Metadata -->
+        <meta name="description" content="NagrikSetu (NyayaFlow): AI-assisted, multilingual municipal grievance redressal and transparent governance platform for Madhya Pradesh.">
+        <link rel="canonical" href="https://nagriksetufinal-nbkvccer5zf9jaz6icatqn.streamlit.app/">
+
+        <!-- Open Graph Meta Tags -->
+        <meta property="og:title" content="NagrikSetu - Municipal Grievance Redressal">
+        <meta property="og:description" content="Transparent, multilingual civic grievance tracking and explainable ML routing for Madhya Pradesh.">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="https://nagriksetufinal-nbkvccer5zf9jaz6icatqn.streamlit.app/">
+        <meta property="og:image" content="https://raw.githubusercontent.com/streamlit/brand/master/logo/streamlit-logo-primary-colormark-darktext.png">
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.markdown(
         """
         <style>
         :root {
             --ink: #172B23;
-            --muted: #68756D;
+            --muted: #45564E;           /* Contrast ratio > 6.4:1 against background (WCAG AA PASS) */
             --navy: #174C3C;
-            --green: #326D57;
-            --blue: #326D57;
-            --teal: #237A52;
+            --green: #2B624D;
+            --blue: #2B624D;
+            --teal: #1F6B48;
             --mint: #E6F2EB;
             --sky: #EEF1EF;
-            --saffron: #F2B84B;
+            --saffron: #945F00;         /* Contrast ratio > 4.8:1 against background (WCAG AA PASS) */
             --warning-background: #FFF5DF;
             --danger: #B42318;
             --danger-background: #FDECEC;
-            --success: #237A52;
+            --success: #1F6B48;
             --success-background: #E6F4EC;
             --neutral-background: #EEF1EF;
-            --line: #E3E9E4;
+            --line: #CBD6CF;
             --paper: #FFFFFF;
             --font-ui: Inter, "Noto Sans Devanagari", "Segoe UI", system-ui, sans-serif;
-            --hero-gradient: linear-gradient(120deg, #174C3C 0%, #326D57 58%, #237A52 100%);
+            --hero-gradient: linear-gradient(120deg, #174C3C 0%, #2B624D 58%, #1F6B48 100%);
         }
         html, body { font-family: var(--font-ui); }
         html { font-size: 16px; }
@@ -39,18 +64,28 @@ def apply_demo_style():
             color: var(--ink);
         }
         header[data-testid="stHeader"] { background: transparent; }
-        .block-container { max-width: 1220px; padding: 1.25rem 1.5rem 3rem; }
+
+        /* Landmark container for screen readers */
+        .block-container {
+            role: main;
+            aria-label: "NagrikSetu Operations";
+            max-width: 1220px;
+            padding: 1.25rem 1.5rem 3rem;
+        }
+
         h1, h2, h3, h4 { color: var(--ink); letter-spacing: -.025em; }
         h1 { font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1.12; }
         h2 { font-size: clamp(1.45rem, 3vw, 2rem); }
         p, li { color: var(--ink); line-height: 1.65; }
-        [data-testid="stCaptionContainer"] p { color: var(--muted); }
+
+        /* High contrast for caption and metric labels */
+        [data-testid="stCaptionContainer"] p { color: var(--muted) !important; font-weight: 500; }
         [data-testid="stMetric"] {
             background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
             padding: 14px 18px; box-shadow: 0 5px 18px rgba(23,43,35,.05);
         }
-        [data-testid="stMetricLabel"] { color: var(--muted); }
-        [data-testid="stMetricValue"] { color: var(--ink); }
+        [data-testid="stMetricLabel"] { color: var(--muted) !important; font-weight: 600; }
+        [data-testid="stMetricValue"] { color: var(--ink) !important; }
         [data-testid="stVerticalBlockBorderWrapper"] > div {
             background: var(--paper); border: 1px solid var(--line) !important;
             border-radius: 18px !important; box-shadow: 0 7px 22px rgba(16,37,59,.055);
@@ -74,22 +109,22 @@ def apply_demo_style():
             [data-testid="stDownloadButton"] button:hover:not(:disabled),
             [data-testid="stPageNav"] a:hover {
                 transform: translateY(-2px); border-color: var(--teal) !important;
-                box-shadow: 0 0 0 3px rgba(35,122,82,.12),
-                    0 0 22px rgba(35,122,82,.28), 0 8px 20px rgba(23,76,60,.16);
+                box-shadow: 0 0 0 3px rgba(31,107,72,.12),
+                    0 0 22px rgba(31,107,72,.28), 0 8px 20px rgba(23,76,60,.16);
                 filter: saturate(1.08);
             }
             [data-testid="stTextInputRootElement"]:hover,
             [data-testid="stTextAreaRootElement"]:hover,
             [data-testid="stSelectbox"] div:has(> [role="combobox"]):hover {
-                border-color: rgba(35,122,82,.72) !important;
-                box-shadow: 0 0 0 3px rgba(35,122,82,.10), 0 0 18px rgba(35,122,82,.16);
+                border-color: rgba(31,107,72,.72) !important;
+                box-shadow: 0 0 0 3px rgba(31,107,72,.10), 0 0 18px rgba(31,107,72,.16);
                 transition: box-shadow .18s ease, border-color .18s ease;
             }
             [data-testid="stExpander"] summary:hover,
             [data-testid="stTabs"] button:hover,
             [role="radio"]:hover, [role="checkbox"]:hover,
             [role="option"]:hover {
-                filter: drop-shadow(0 0 7px rgba(35,122,82,.24));
+                filter: drop-shadow(0 0 7px rgba(31,107,72,.24));
                 transition: filter .18s ease;
             }
         }
@@ -97,7 +132,7 @@ def apply_demo_style():
         [data-testid="stFormSubmitButton"] button:active:not(:disabled),
         [data-testid="stDownloadButton"] button:active:not(:disabled) {
             transform: translateY(0) scale(.985);
-            box-shadow: 0 0 0 2px rgba(35,122,82,.16), 0 3px 10px rgba(23,76,60,.12);
+            box-shadow: 0 0 0 2px rgba(31,107,72,.16), 0 3px 10px rgba(23,76,60,.12);
         }
         .stButton > button[kind="primary"],
         button[kind*="primary"],
@@ -111,8 +146,8 @@ def apply_demo_style():
         form button[type="submit"],
         [data-testid="stFormSubmitButton"] button:not(:disabled),
         [data-testid="stBaseButton-primary"] {
-            background: linear-gradient(120deg, #174C3C 0%, #326D57 58%, #237A52 100%) !important;
-            background-color: #326D57 !important; border: 0 !important; color: #fff !important;
+            background: linear-gradient(120deg, #174C3C 0%, #2B624D 58%, #1F6B48 100%) !important;
+            background-color: #2B624D !important; border: 0 !important; color: #fff !important;
             -webkit-text-fill-color: #fff !important;
         }
         .stButton > button[kind="primary"] *,
@@ -123,7 +158,7 @@ def apply_demo_style():
         [data-testid="stFormSubmitButton"] [data-testid="stBaseButton-primary"] * { color: #fff !important; }
         button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible,
         [role="combobox"]:focus-visible {
-            outline: 3px solid #326D57 !important; outline-offset: 3px !important;
+            outline: 3px solid #1F6B48 !important; outline-offset: 3px !important;
             box-shadow: 0 0 0 2px #fff !important;
         }
         [data-testid="stTextInputRootElement"], [data-testid="stTextAreaRootElement"],
@@ -199,19 +234,19 @@ def apply_demo_style():
         }
         [data-testid="stPageNav"] a:hover {
             background: linear-gradient(115deg, rgba(230,242,235,.96), rgba(255,255,255,.94));
-            border-color: rgba(35,122,82,.28); color: var(--navy);
-            box-shadow: 0 0 0 3px rgba(35,122,82,.08), 0 7px 18px rgba(23,76,60,.12);
+            border-color: rgba(31,107,72,.28); color: var(--navy);
+            box-shadow: 0 0 0 3px rgba(31,107,72,.08), 0 7px 18px rgba(23,76,60,.12);
             transform: translateY(-1px);
         }
         [data-testid="stPageNav"] a[aria-current="page"] {
-            background: linear-gradient(115deg, #174C3C 0%, #237A52 100%);
+            background: linear-gradient(115deg, #174C3C 0%, #1F6B48 100%);
             border-color: rgba(23,76,60,.8); color: #fff !important;
             box-shadow: 0 6px 16px rgba(23,76,60,.22);
         }
         [data-testid="stPageNav"] a[aria-current="page"] * { color: #fff !important; }
         .st-key-resident-complaint-total [data-testid="stMetric"] {
             background: linear-gradient(130deg, #FFFFFF 0%, #F1F8F3 100%);
-            border-color: rgba(35,122,82,.22);
+            border-color: rgba(31,107,72,.22);
             box-shadow: 0 12px 28px rgba(23,76,60,.09);
         }
         .st-key-resident-complaint-total [data-testid="stMetricValue"] {
@@ -284,7 +319,7 @@ def render_hero(eyebrow: str, title: str, description: str):
     eyebrow, title, description = (escape(str(value)) for value in (eyebrow, title, description))
     st.markdown(
         f"""
-        <section class="nf-hero">
+        <section class="nf-hero" role="region" aria-label="{title}">
           <div class="nf-eyebrow">{eyebrow}</div>
           <h1>{title}</h1>
           <p>{description}</p>

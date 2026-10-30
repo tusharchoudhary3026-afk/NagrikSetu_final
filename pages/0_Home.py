@@ -28,11 +28,14 @@ user = require_login()
 apply_demo_style()
 
 if user["role"] == "public":
-    st.title("Home")
+    # Explicit H1 landmark for accessibility compliance (ArgosX / WCAG 2 AA)
+    st.markdown("<h1 style='font-size: 2rem; margin-bottom: 0.5rem;'>NagrikSetu Resident Home</h1>", unsafe_allow_html=True)
     mine = list_own_complaints(user["id"])
     with st.container(border=True, key="resident-complaint-total"):
         st.metric("Total complaints submitted", len(mine))
 else:
+    # Explicit H1 landmark for staff session
+    st.markdown("<h1 style='font-size: 1.85rem; margin-bottom: 0.5rem;'>NagrikSetu Staff Workspace</h1>", unsafe_allow_html=True)
     if user["role"] in STAFF_ROLES:
         location_state = staff_location_snapshot(user)
         st.subheader("Choose your service area")

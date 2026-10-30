@@ -1,9 +1,11 @@
+import json
 from datetime import date, timedelta, datetime, time, timezone
 
 import pandas as pd
 import streamlit as st
 
 from core.config import feature_enabled
+from core.db import get_conn
 from core.hotspots import detect_hotspot_signals
 from core.staff_dashboard import get_staff_case_detail, list_staff_cases
 from core.ui import apply_demo_style, render_hero, require_permission
@@ -66,9 +68,40 @@ else:
             if not related:
                 st.info("No current-period complaint records remain in this authorized filter.")
                 continue
+
+            # Proactive municipal field inspection action
+            st.markdown("#### Proactive Field Operations")
+            disp_col1, disp_col2 = st.columns([2, 1])
+            insp_note = disp_col1.text_input(
+                f"Inspection directive for {signal['area']}",
+                value=f"Proactive field survey for {signal['category']} cluster in {signal['area']}.",
+                key=f"directive-{index}"
+            )
+            if disp_col2.button(f"Dispatch Field Inspection Team", key=f"dispatch-team-{index}", type="primary"):
+                conn = get_conn()
+                try:
+                    conn.execute("BEGIN IMMEDIATE")
+                    actor_email = user.get("email", "staff")
+                    for case_id in signal["complaint_ids"]:
+                        conn.execute(
+                            "INSERT INTO ledger (complaint_id, event_type, actor, reason, details) "
+                            "VALUES (?, 'hotspot_inspection_dispatched', ?, ?, ?)",
+                            (case_id, actor_email, insp_note,
+                             json.dumps({"area": signal["area"], "category": signal["category"],
+                                         "cluster_count": signal["current_count"]}))
+                        )
+                    conn.commit()
+                    st.success(f"Inspection team dispatched and recorded in ledger for {len(signal['complaint_ids'])} cases.")
+                except Exception as exc:
+                    conn.rollback()
+                    st.error(f"Dispatch recording failed: {exc}")
+                finally:
+                    conn.close()
+
+            st.divider()
             labels = {f"{case['case_id']} · {case.get('created_at')} · {case.get('location') or 'Area not recorded'}": case
                       for case in related}
-            selected_label = st.selectbox("Related complaints", list(labels), key=f"hotspot-case-{index}")
+            selected_label = st.selectbox("Related complaints in this cluster", list(labels), key=f"hotspot-case-{index}")
             if st.button("Open case details", key=f"hotspot-open-{index}"):
                 try:
                     st.session_state[f"hotspot-detail-{index}"] = get_staff_case_detail(user, labels[selected_label]["id"])

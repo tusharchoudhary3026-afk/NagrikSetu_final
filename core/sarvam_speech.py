@@ -15,13 +15,13 @@ except Exception:  # Keep the rest of the application usable without voice extra
 
 def _api_key() -> str:
     """Read the key from process env, Streamlit secrets, or the ignored local .env."""
-    key = os.environ.get("SARVAM_API_KEY", "sk_oof9rn6g_9b1WoNX6oJkGGHdM3nZpmDhU").strip()
+    key = os.environ.get("SARVAM_API_KEY", "").strip()
     if key:
         return _clean_key(key)
 
     try:
         import streamlit as st
-        key = str(st.secrets.get("SARVAM_API_KEY", "sk_oof9rn6g_9b1WoNX6oJkGGHdM3nZpmDhU")).strip()
+        key = str(st.secrets.get("SARVAM_API_KEY", "")).strip()
     except Exception:
         # Streamlit secrets are unavailable when this function is used outside
         # a Streamlit runtime or before a secrets file has been created.

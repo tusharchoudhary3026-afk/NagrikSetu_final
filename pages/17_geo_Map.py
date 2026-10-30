@@ -10,19 +10,39 @@ from streamlit_folium import st_folium
 from core.staff_dashboard import list_staff_cases
 from core.ui import apply_demo_style, render_hero, require_permission
 
-
-# These are approximate demo centers, not authoritative ward boundaries or
-# complaint coordinates. The complaint schema currently stores area names only.
+# Multi-city coordinates across Madhya Pradesh (Gwalior, Bhopal, Indore, Jabalpur, Ujjain)
 AREA_CENTERS = {
+    # Gwalior
     "lashkar": (26.2150, 78.1650),
     "thatipur": (26.2250, 78.2000),
     "morar": (26.2200, 78.2150),
     "gole ka mandir": (26.2300, 78.1960),
     "city centre": (26.2050, 78.1800),
     "city center": (26.2050, 78.1800),
+    "hazira": (26.2370, 78.1750),
+    "jayendraganj": (26.2120, 78.1720),
+    # Bhopal
+    "mp nagar": (23.2332, 77.4343),
+    "kolar road": (23.1783, 77.4182),
+    "arera colony": (23.2135, 77.4326),
+    "tt nagar": (23.2384, 77.4011),
+    "karond": (23.2980, 77.4020),
+    # Indore
+    "vijay nagar": (22.7533, 75.8937),
+    "palasia": (22.7244, 75.8839),
+    "rajwada": (22.7196, 75.8577),
+    "bhanwarkuan": (22.6926, 75.8676),
+    "rau": (22.6280, 75.8170),
+    # Jabalpur
+    "civil lines": (23.1610, 79.9489),
+    "wright town": (23.1670, 79.9320),
+    "russell chowk": (23.1700, 79.9410),
+    # Ujjain
+    "freeganj": (23.1789, 75.7955),
+    "nanakheda": (23.1550, 75.7830),
+    "mahakal marg": (23.1830, 75.7680),
 }
-CITY_CENTER = (26.2183, 78.1828)
-
+DEFAULT_CITY_CENTER = (26.2183, 78.1828)
 
 user = require_permission("can_view_hotspots")
 apply_demo_style()
@@ -69,8 +89,6 @@ filtered_cases = [
 ]
 st.caption(f"Showing **{len(filtered_cases)}** in-scope complaints matching these filters.")
 
-# Aggregate by area rather than plotting per-case pseudo-random offsets. This
-# avoids suggesting that a case has a precise position when no coordinates exist.
 area_counts = Counter(case_area(case) for case in filtered_cases)
 mapped_areas = {
     area: count for area, count in area_counts.items()
@@ -78,7 +96,16 @@ mapped_areas = {
 }
 unmapped_count = sum(count for area, count in area_counts.items() if area not in mapped_areas)
 
-map_view = folium.Map(location=CITY_CENTER, zoom_start=12, tiles="OpenStreetMap")
+# Calculate dynamic center based on active mapped markers
+if mapped_areas:
+    coords = [AREA_CENTERS[area.casefold()] for area in mapped_areas]
+    center_lat = sum(c[0] for c in coords) / len(coords)
+    center_lon = sum(c[1] for c in coords) / len(coords)
+    active_center = (center_lat, center_lon)
+else:
+    active_center = DEFAULT_CITY_CENTER
+
+map_view = folium.Map(location=active_center, zoom_start=12, tiles="OpenStreetMap")
 marker_cluster = MarkerCluster(name="Approximate area counts").add_to(map_view)
 for area, count in sorted(mapped_areas.items(), key=lambda item: item[0].casefold()):
     lat, lon = AREA_CENTERS[area.casefold()]
