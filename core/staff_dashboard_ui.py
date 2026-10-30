@@ -10,7 +10,7 @@ from .config import REASON_CODES, feature_enabled
 from .intake import ISSUE_CATEGORIES, normalize_location
 from .intake_corrections import correct_intake_fields
 from .privacy import mask_text
-from .staff_dashboard import (get_dashboard_summary, get_staff_case_detail,
+from .staff_dashboard import (get_staff_case_detail,
                               get_ward_hotspots, list_staff_cases, _parse_time,
                               perform_staff_action)
 from .ui import render_hero
@@ -28,25 +28,102 @@ def _case_label(case):
     return f"{case['case_id']} · {case['issue'] or 'Uncategorized'} · {location} · {case['status']}"
 
 
-def render_staff_dashboard(user):
-    """Render one scoped, actionable workspace inside the existing Overview page."""
-    rows = list_staff_cases(user)
-    summary = get_dashboard_summary(user)
-    hotspots = get_ward_hotspots(user) if feature_enabled("hotspots") else []
-    areas = sorted({row.get("area_name") or row.get("location") or "Area not recorded" for row in rows})
-    issues = sorted({row.get("issue") or "Uncategorized" for row in rows})
-    render_hero("Government staff workspace", "Complaint operations",
-                "Review complaints in your selected service areas, take accountable actions, and follow the immutable case history.")
-    if user.get("role") == "operator":
-        access_label = f"Officer department: {user.get('department') or 'not assigned'}"
-    elif user.get("role") == "auditor":
-        access_label = "Read-only audit scope: authorized departments within selected service areas"
-    else:
-        access_label = "Review scope: authorized departments within selected service areas"
-    st.caption(f"Access scope: {access_label}")
-    st.info("DEMO SLA assumption · deadlines are configurable prototype targets, not official service guarantees.",
-            icon="⏱️")
+def _service_area_label(area):
+    return f"{area['area_name']} · {area['city_name']}, {area['state_name']}"
 
+
+def render_staff_dashboard(user, service_areas=None):
+    """Render a location-scoped, actionable staff workspace."""
+    from .geo import CITY_WIDE_AREA_CODE, area_options
+
+    service_areas = service_areas or []
+    area_by_label = {_service_area_label(area): area for area in service_areas}
+    active_assignment = None
+    is_city_wide = False
+    render_hero("Government staff workspace", "Complaint operations",
+                "Review complaints for one selected service area and record accountable actions.")
+
+    st.subheader("Location and access scope")
+    scope_col, location_col = st.columns(2, gap="medium")
+    if area_by_label:
+        selected_label = st.session_state.get("staff-active-area-label")
+        if selected_label not in area_by_label:
+            active_assignment = max(service_areas, key=lambda row: str(row.get("created_at") or ""))
+            selected_label = _service_area_label(active_assignment)
+            st.session_state["staff-active-area-label"] = selected_label
+        selected_label = scope_col.selectbox("Assigned service area", list(area_by_label),
+                                             key="staff-active-area-label")
+        active_assignment = area_by_label[selected_label]
+        is_city_wide = active_assignment.get("area_code") == CITY_WIDE_AREA_CODE
+    selected_location_name = None
+    location_filter = {}
+    if active_assignment and is_city_wide:
+        city_areas = (area_options().get(active_assignment["state_code"], {})
+                      .get("cities", {}).get(active_assignment["city_code"], {}).get("areas", {}))
+        location_key = (f"staff-ward-filter-{active_assignment['state_code']}-"
+                        f"{active_assignment['city_code']}")
+        selected_area_code = location_col.selectbox(
+            "Location to review", [None, *city_areas],
+            format_func=lambda code: "Choose a ward / area" if code is None else city_areas[code],
+            key=location_key,
+        )
+        if selected_area_code is None:
+            active_area_name = "a selected ward / area"
+        else:
+            selected_location_name = city_areas[selected_area_code]
+            active_area_name = selected_location_name
+            location_filter = {
+                "state_code": active_assignment["state_code"],
+                "city_code": active_assignment["city_code"],
+                "area_code": selected_area_code,
+            }
+    elif active_assignment:
+        active_area_name = active_assignment["area_name"]
+        selected_location_name = active_area_name
+        location_col.caption(f"Location filter: {selected_location_name}")
+        location_filter = {
+            "state_code": active_assignment["state_code"],
+            "city_code": active_assignment["city_code"],
+            "area_code": active_assignment["area_code"],
+        }
+    else:
+        # Fail closed if this UI is ever called without an approved location.
+        active_area_name = "an assigned service area"
+        st.info("Select an approved service area above to load complaints.")
+    current_scope = tuple(location_filter.get(key) for key in ("state_code", "city_code", "area_code"))
+    if st.session_state.get("staff-dashboard-last-scope") != current_scope:
+        for key in ("staff-inbox-search", "staff-inbox-status", "staff-inbox-issue",
+                    "staff-inbox-sort", "staff-inbox-safety", "staff-inbox-overlap",
+                    "staff-inbox-overdue", "staff-inbox-dates", "staff-dashboard-case"):
+            st.session_state.pop(key, None)
+        st.session_state["staff-dashboard-last-scope"] = current_scope
+    rows = list_staff_cases(user, filters=location_filter) if location_filter else []
+    summary = {
+        "new": sum(row["status"] == "new" for row in rows),
+        "pending": sum(row["status"] == "pending" for row in rows),
+        "overdue": sum(row["sla"]["overdue"] for row in rows),
+        "awaiting_clarification": sum(row["status"] == "awaiting clarification" for row in rows),
+        "resolved": sum(row["status"] == "resolved" for row in rows),
+    }
+    hotspots = get_ward_hotspots(user) if feature_enabled("hotspots") else []
+    if active_assignment and is_city_wide and not selected_location_name:
+        hotspots = []
+    elif active_assignment and is_city_wide:
+        hotspots = [item for item in hotspots if item["location"] == selected_location_name]
+    elif active_assignment and not is_city_wide:
+        hotspots = [item for item in hotspots if item["location"] == active_area_name]
+    issues = sorted({row.get("issue") or "Uncategorized" for row in rows})
+    if user.get("role") == "operator":
+        access_label = f"Department: {user.get('department') or 'not assigned'}"
+    elif user.get("role") == "auditor":
+        access_label = "Read-only audit scope · selected service area"
+    else:
+        access_label = "Review scope · selected service area"
+    st.caption(f"Access scope: {access_label}")
+    st.caption(f"Showing only authorized complaints for {active_area_name}.")
+    st.caption("SLA values are configurable prototype targets, not official service guarantees.")
+
+    st.subheader("Workload overview")
     metric_cols = st.columns(5)
     metrics = [("New", "new"), ("Pending", "pending"), ("Overdue", "overdue"),
                ("Awaiting clarification", "awaiting_clarification"), ("Resolved", "resolved")]
@@ -54,60 +131,55 @@ def render_staff_dashboard(user):
         column.metric(label, summary[key])
 
     if feature_enabled("hotspots"):
-      with st.container(border=True):
-        st.markdown('<div class="nf-section-kicker">WARD HOTSPOT SUMMARY · SCOPED</div>',
-                    unsafe_allow_html=True)
-        st.caption("Pending report counts in the latest 7 days; compared with the preceding 7-day period. "
-                   "Synthetic records are labeled and do not establish a validated trend.")
-        if not hotspots:
-            st.write("No hotspot summary is available for your authorized department and service areas.")
-        else:
-            for index, item in enumerate(hotspots):
-                col, metric, action = st.columns([2.2, 1.5, 1.4], vertical_alignment="center")
-                col.markdown(f"**{item['location']} · {item['issue']}**")
-                metric.metric("Pending reports", item["count"],
-                              delta=f"{item['observed_count']} recent · {item['baseline_count']} previous submissions")
-                action.caption(f"{item['data_label']} · {item['sample_status'] or 'sample count shown'}")
-                action.caption(f"{item['window_start'][:10]} to {item['window_end'][:10]} vs preceding "
-                               f"{item['window_days']} days; pending baseline {item['pending_baseline']}")
-                if action.button("Filter inbox", key=f"hotspot-filter-{index}"):
-                    if item["location"] in areas:
-                        st.session_state["staff-inbox-area"] = item["location"]
-                    if item["issue"] in issues:
-                        st.session_state["staff-inbox-issue"] = item["issue"]
-                    st.rerun()
-        st.page_link("pages/13_Hotspots.py", label="Open hotspot analysis", icon="📈")
+        with st.expander("Area activity · exploratory hotspot signals", expanded=False):
+            st.caption("Counts compare the latest 7 days with the preceding 7 days. Synthetic data and small samples do not establish a validated trend.")
+            if not hotspots:
+                st.write("No hotspot summary is available for this service area and your department scope.")
+            else:
+                for index, item in enumerate(hotspots):
+                    col, metric, action = st.columns([2, 1.2, 1.5], vertical_alignment="center")
+                    col.markdown(f"**{item['location']} · {item['issue']}**")
+                    metric.metric("Pending reports", item["count"],
+                                  delta=f"{item['observed_count']} recent · {item['baseline_count']} previous")
+                    action.caption(f"{item['data_label']} · {item['sample_status'] or 'sample count shown'}")
+                    if action.button("Filter by issue", key=f"hotspot-filter-{index}"):
+                        if item["issue"] in issues:
+                            st.session_state["staff-inbox-issue"] = item["issue"]
+                        st.rerun()
+            st.page_link("pages/13_Hotspots.py", label="Open hotspot analysis", icon="📈")
 
     st.subheader("Officer inbox")
-    st.caption(f"Showing {len(rows)} complaints available to your role, assigned department, and selected service areas.")
+    st.caption(f"{len(rows)} complaints in {active_area_name}, after role and department checks.")
     if not rows:
-        st.success("No complaints are currently assigned to your department and selected service areas.")
+        if is_city_wide and not selected_location_name:
+            st.info("Choose a ward / area above to load only the complaints for that location.")
+            return
+        st.info(f"No complaints are currently available in {active_area_name}.")
         return
 
     statuses = sorted({row["status"] for row in rows})
-    area_default = st.session_state.get("staff-inbox-area", "All authorized areas")
     issue_default = st.session_state.get("staff-inbox-issue", "All categories")
-    if area_default not in areas and area_default != "All authorized areas":
-        area_default = "All authorized areas"
     if issue_default not in issues and issue_default != "All categories":
         issue_default = "All categories"
-    search_col, status_col, area_col, issue_col, sort_col = st.columns([2, 1.1, 1.5, 1.4, 1.5])
-    search = search_col.text_input("Search case, text, or location", key="staff-inbox-search")
-    status = status_col.selectbox("Status", ["All statuses", *statuses], key="staff-inbox-status")
-    area = area_col.selectbox("Ward / area", ["All authorized areas", *areas],
-                              index=(["All authorized areas", *areas].index(area_default)),
-                              key="staff-inbox-area")
-    issue = issue_col.selectbox("Category", ["All categories", *issues],
-                                index=(["All categories", *issues].index(issue_default)),
-                                key="staff-inbox-issue")
-    sort_by = sort_col.selectbox("Sort by", ["Newest first", "Oldest first", "SLA deadline", "Overdue first"],
-                                 key="staff-inbox-sort")
-    flag_col, overlap_col, overdue_col, date_col = st.columns([1.1, 1.5, 1.1, 2.1])
-    safety_only = flag_col.checkbox("Safety flag only", key="staff-inbox-safety")
-    overlap_only = overlap_col.checkbox("Ownership conflict only", key="staff-inbox-overlap")
-    overdue_only = overdue_col.checkbox("Overdue only", key="staff-inbox-overdue")
-    date_range = date_col.date_input("Submitted date range", value=(date.today() - timedelta(days=90), date.today()),
-                                     key="staff-inbox-dates")
+        st.session_state["staff-inbox-issue"] = issue_default
+    status_default = st.session_state.get("staff-inbox-status", "All statuses")
+    if status_default not in statuses and status_default != "All statuses":
+        st.session_state["staff-inbox-status"] = "All statuses"
+    with st.expander("Search and filters", expanded=False):
+        search_col, status_col, issue_col, sort_col = st.columns([2, 1.2, 1.5, 1.5])
+        search = search_col.text_input("Search case, text, or location", key="staff-inbox-search")
+        status = status_col.selectbox("Status", ["All statuses", *statuses], key="staff-inbox-status")
+        issue = issue_col.selectbox("Category", ["All categories", *issues],
+                                    index=(["All categories", *issues].index(issue_default)),
+                                    key="staff-inbox-issue")
+        sort_by = sort_col.selectbox("Sort by", ["Newest first", "Oldest first", "SLA deadline", "Overdue first"],
+                                     key="staff-inbox-sort")
+        flag_col, overlap_col, overdue_col, date_col = st.columns([1.1, 1.5, 1.1, 2.1])
+        safety_only = flag_col.checkbox("Safety flag only", key="staff-inbox-safety")
+        overlap_only = overlap_col.checkbox("Ownership conflict only", key="staff-inbox-overlap")
+        overdue_only = overdue_col.checkbox("Overdue only", key="staff-inbox-overdue")
+        date_range = date_col.date_input("Submitted date range", value=(date.today() - timedelta(days=90), date.today()),
+                                         key="staff-inbox-dates")
 
     visible = rows
     if search:
@@ -117,8 +189,6 @@ def render_staff_dashboard(user):
                    ("case_id", "original_text", "issue", "location", "location_normalized", "area_name"))) or "")]
     if status != "All statuses":
         visible = [row for row in visible if row["status"] == status]
-    if area != "All authorized areas":
-        visible = [row for row in visible if (row.get("area_name") or row.get("location") or "Area not recorded") == area]
     if issue != "All categories":
         visible = [row for row in visible if (row.get("issue") or "Uncategorized") == issue]
     if safety_only:
@@ -151,15 +221,20 @@ def render_staff_dashboard(user):
                 "Ownership": "Check" if row["ownership_conflicts"] else "—"}
                for row in visible]
     if display:
-        st.dataframe(pd.DataFrame(display), hide_index=True, width="stretch")
+        st.caption(f"Showing {len(display)} of {len(rows)} complaints for the selected location.")
+        with st.container(border=True, key="staff-inbox-results"):
+            st.dataframe(pd.DataFrame(display), hide_index=True, width="stretch")
         ids = [row["id"] for row in visible]
-        case_id = st.selectbox("Open complaint details", ids,
+        case_key = "staff-dashboard-case"
+        if st.session_state.get(case_key) not in ids:
+            st.session_state[case_key] = ids[0]
+        case_id = st.selectbox("Select a complaint to review", ids,
                                format_func=lambda selected: _case_label(next(r for r in visible if r["id"] == selected)),
-                               key="staff-dashboard-case")
+                               key=case_key)
         detail = get_staff_case_detail(user, case_id)
         complaint = detail["complaint"]
         st.divider()
-        st.subheader(f"Case review · {complaint['case_id']}")
+        st.subheader(f"Selected complaint · {complaint['case_id']}")
         if verify_permission(user.get("role"), "can_review"):
             with st.expander("Correct extracted fields"):
                 st.caption("Changes are recorded as an append-only ledger event. Original complaint text and routing suggestions are not changed. Location text stays within the approved service-area assignment.")
@@ -190,6 +265,7 @@ def render_staff_dashboard(user):
                         st.rerun()
                     except (ValueError, PermissionError) as exc:
                         st.error(str(exc))
+        st.markdown("### Complaint details")
         detail_left, detail_right = st.columns([1.4, 1], gap="large")
         with detail_left:
             st.markdown("**Original complaint**")
@@ -215,6 +291,7 @@ def render_staff_dashboard(user):
                     st.info("The parent remains unassigned as a whole. Review the confirmed sub-issues below for their separate routes.")
                 else:
                     st.warning("No usable routing suggestion is available. A human decision is required.")
+        st.markdown("### Evidence and review signals")
         if detail["routing_history"]:
             st.markdown("**Routing evidence and uncertainty**")
             for item in detail["routing_history"]:
@@ -260,28 +337,28 @@ def render_staff_dashboard(user):
                              caption=attachment["original_name"])
                 except (PermissionError, ValueError) as exc:
                     st.caption(f"Attachment unavailable: {exc}")
-        st.markdown("**Immutable case timeline**")
-        for item in detail["timeline"]:
-            actor = item.get("actor") or "system"
-            reason = item.get("reason") or ""
-            reason_code = item.get("reason_code")
-            suffix = f" · {reason_code}" if reason_code else ""
-            detail_text = ""
-            raw_details = item.get("details")
-            if raw_details:
-                try:
-                    event_details = json.loads(raw_details) if isinstance(raw_details, str) else raw_details
-                except (TypeError, ValueError):
-                    event_details = {}
-                old_status, new_status = event_details.get("prior_status"), event_details.get("new_status")
-                old_department = event_details.get("previous_department")
-                new_department = event_details.get("new_department")
-                if old_status or new_status:
-                    detail_text += f" · status {old_status or '—'} → {new_status or '—'}"
-                if old_department or new_department:
-                    detail_text += f" · department {old_department or '—'} → {new_department or '—'}"
-            st.write(f"{_date_label(item.get('created_at'))} · **{item['event_type'].replace('_', ' ').title()}** · "
-                     f"{actor}{suffix}{detail_text}{(' — ' + reason) if reason else ''}")
+        with st.expander("Immutable case timeline", expanded=False):
+            for item in detail["timeline"]:
+                actor = item.get("actor") or "system"
+                reason = item.get("reason") or ""
+                reason_code = item.get("reason_code")
+                suffix = f" · {reason_code}" if reason_code else ""
+                detail_text = ""
+                raw_details = item.get("details")
+                if raw_details:
+                    try:
+                        event_details = json.loads(raw_details) if isinstance(raw_details, str) else raw_details
+                    except (TypeError, ValueError):
+                        event_details = {}
+                    old_status, new_status = event_details.get("prior_status"), event_details.get("new_status")
+                    old_department = event_details.get("previous_department")
+                    new_department = event_details.get("new_department")
+                    if old_status or new_status:
+                        detail_text += f" · status {old_status or '—'} → {new_status or '—'}"
+                    if old_department or new_department:
+                        detail_text += f" · department {old_department or '—'} → {new_department or '—'}"
+                st.write(f"{_date_label(item.get('created_at'))} · **{item['event_type'].replace('_', ' ').title()}** · "
+                         f"{actor}{suffix}{detail_text}{(' — ' + reason) if reason else ''}")
     else:
         st.info("No complaints match these filters.")
 

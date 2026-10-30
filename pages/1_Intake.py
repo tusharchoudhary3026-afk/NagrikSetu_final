@@ -1,3 +1,5 @@
+import hashlib
+import logging
 import uuid
 import streamlit as st
 
@@ -11,7 +13,7 @@ from core.suggestions import selected_department
 from core.security import attachment_encryption_status
 from core.ui import apply_demo_style, render_hero, require_permission
 from core.geo import staff_area_scope
-from core.sarvam_speech import transcribe_audio
+from core.sarvam_speech import sarvam_configured, transcribe_audio
 
 init_db()
 user = require_permission("can_intake")
@@ -26,23 +28,57 @@ st.warning(SIM_LABEL)
 # Sarvam AI Voice Intake Section
 if feature_enabled("voice"):
     st.markdown("### 🎙️ Voice Intake (Powered by Sarvam AI)")
-    st.caption("Record your grievance in Hindi, English, or Hinglish. Sarvam AI will transcribe it accurately.")
+    st.caption("Record your grievance in Hindi, English, or Hinglish. Review the transcript before processing.")
+    speech_language = st.selectbox(
+        "Spoken language", ["Auto-detect", "Hindi", "English", "Hinglish"],
+        key="staff-speech-language",
+    )
+    language_code = {"Hindi": "hi-IN", "English": "en-IN"}.get(speech_language, "unknown")
+    voice_ready = sarvam_configured()
+    if not voice_ready:
+        st.warning("Voice transcription is not configured. Add a valid SARVAM_API_KEY to .env or .streamlit/secrets.toml, then refresh the page.")
     
-    audio_value = st.audio_input("Record your complaint voice note", key="sarvam_audio_recorder")
+    audio_value = st.audio_input("Record your complaint voice note", sample_rate=16000,
+                                 key="sarvam_audio_recorder", disabled=not voice_ready)
     
-    if audio_value is not None:
+    if audio_value is not None and voice_ready:
         audio_bytes = audio_value.getvalue()
-        if audio_bytes != st.session_state.get("last_audio_bytes"):
+        audio_digest = hashlib.sha256(language_code.encode("ascii") + b"\0" + audio_bytes).hexdigest()
+        digest_key = "last_audio_digest"
+        error_key = "audio_transcription_error"
+        if audio_digest != st.session_state.get(digest_key):
+            st.session_state[digest_key] = audio_digest
+            st.session_state.pop(error_key, None)
             with st.spinner("Transcribing audio via Sarvam AI..."):
                 try:
-                    transcript = transcribe_audio(audio_bytes, audio_value.name)
+                    transcript = transcribe_audio(
+                        audio_bytes, audio_value.name, language_code=language_code)
                     if transcript:
                         st.session_state["intake_text"] = transcript
-                        st.session_state["last_audio_bytes"] = audio_bytes
+                        st.session_state.pop(error_key, None)
                         st.success("Audio transcribed successfully! You can review or edit the text below.")
                         st.rerun()
-                except Exception as exc:
+                except ValueError as exc:
+                    st.session_state[error_key] = str(exc)
                     st.error(str(exc))
+                    if st.button("Retry transcription", key="retry-staff-transcription"):
+                        st.session_state.pop(digest_key, None)
+                        st.rerun()
+                except Exception:
+                    st.session_state[error_key] = "Transcription failed unexpectedly. Please retry the recording."
+                    logging.getLogger(__name__).exception("Staff voice transcription failed")
+                    st.error(st.session_state[error_key])
+                    if st.button("Retry transcription", key="retry-staff-transcription"):
+                        st.session_state.pop(digest_key, None)
+                        st.rerun()
+        elif st.session_state.get(error_key):
+            st.error(st.session_state[error_key])
+            if st.button("Retry transcription", key="retry-staff-transcription"):
+                st.session_state.pop(digest_key, None)
+                st.rerun()
+    else:
+        st.session_state.pop("last_audio_digest", None)
+        st.session_state.pop("audio_transcription_error", None)
 else:
     st.caption("Voice intake is disabled by configuration.")
 

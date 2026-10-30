@@ -17,7 +17,7 @@ right.metric("TLS", tls["label"])
 
 st.subheader("Selected feature paths")
 features = [
-    ("Speech-to-text", "TRIAL", "Browser speech recognition can fill the editable intake field. Audio is not stored by NagrikSetu; Hindi-English mixed speech quality has not been validated."),
+    ("Speech-to-text", "SARVAM · KEY REQUIRED", "Short recordings are sent to Sarvam Saaras v4 for transcription. Residents can review and edit the transcript; NagrikSetu does not retain the audio."),
     ("Photo attachment", "INCLUDED", "JPEG, PNG, and WEBP evidence is size/type-checked, metadata-stripped, AES-GCM encrypted at rest, and visible to government staff only. Upload is disabled until a key is configured."),
     ("Hotspot detection", "INCLUDED · SYNTHETIC", "Counts compare the selected time window with an equal baseline period. Results are labelled synthetic when based on demo records."),
     ("Citizen-side challenge", "INCLUDED", "A signed-in resident can request review only for a complaint submitted from their account. Government staff resolve it; the request does not change routing."),

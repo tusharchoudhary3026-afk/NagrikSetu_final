@@ -12,24 +12,30 @@ def apply_demo_style():
         """
         <style>
         :root {
-            --ink: #10253B;
-            --muted: #5B6E82;
-            --navy: #0F2F52;
-            --blue: #1D5C96;
-            --teal: #14958F;
-            --mint: #E4F6F2;
-            --sky: #EAF3FB;
-            --saffron: #F2A33A;
-            --line: #DCE6EF;
+            --ink: #172B23;
+            --muted: #68756D;
+            --navy: #174C3C;
+            --green: #326D57;
+            --blue: #326D57;
+            --teal: #237A52;
+            --mint: #E6F2EB;
+            --sky: #EEF1EF;
+            --saffron: #F2B84B;
+            --warning-background: #FFF5DF;
+            --danger: #B42318;
+            --danger-background: #FDECEC;
+            --success: #237A52;
+            --success-background: #E6F4EC;
+            --neutral-background: #EEF1EF;
+            --line: #E3E9E4;
             --paper: #FFFFFF;
             --font-ui: Inter, "Noto Sans Devanagari", "Segoe UI", system-ui, sans-serif;
-            --hero-gradient: linear-gradient(120deg, var(--navy) 0%, var(--blue) 58%, #0B716D 100%);
+            --hero-gradient: linear-gradient(120deg, #174C3C 0%, #326D57 58%, #237A52 100%);
         }
         html, body { font-family: var(--font-ui); }
         html { font-size: 16px; }
         .stApp {
-            background: radial-gradient(circle at 7% 0%, rgba(20,149,143,.10), transparent 31rem),
-                        linear-gradient(145deg, #F3F8FC 0%, #EEF7F6 100%);
+            background: #F7F8F6;
             color: var(--ink);
         }
         header[data-testid="stHeader"] { background: transparent; }
@@ -41,7 +47,7 @@ def apply_demo_style():
         [data-testid="stCaptionContainer"] p { color: var(--muted); }
         [data-testid="stMetric"] {
             background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
-            padding: 14px 18px; box-shadow: 0 5px 18px rgba(16,37,59,.05);
+            padding: 14px 18px; box-shadow: 0 5px 18px rgba(23,43,35,.05);
         }
         [data-testid="stMetricLabel"] { color: var(--muted); }
         [data-testid="stMetricValue"] { color: var(--ink); }
@@ -51,19 +57,47 @@ def apply_demo_style():
             transition: transform .18s ease, box-shadow .18s ease;
         }
         [data-testid="stVerticalBlockBorderWrapper"] > div:hover {
-            transform: translateY(-2px); box-shadow: 0 12px 26px rgba(16,37,59,.09);
+            transform: translateY(-2px); box-shadow: 0 12px 26px rgba(23,43,35,.09);
         }
         .stButton > button, .stPageLink > a, [data-testid="stFormSubmitButton"] button {
             min-height: 44px; padding: .55rem 1rem; border-radius: 12px !important;
             border: 1px solid var(--line) !important; font-weight: 650;
             background: var(--paper) !important; color: var(--navy) !important;
             font-family: var(--font-ui) !important;
-            transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+            box-shadow: 0 3px 10px rgba(23,76,60,.07);
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease,
+                filter .18s ease;
         }
-        .stButton > button:hover, .stPageLink > a:hover,
-        [data-testid="stFormSubmitButton"] button:hover {
-            transform: translateY(-1px); border-color: var(--teal) !important;
-            box-shadow: 0 6px 16px rgba(15,47,82,.12);
+        @media (hover: hover) and (pointer: fine) {
+            .stButton > button:hover:not(:disabled), .stPageLink > a:hover,
+            [data-testid="stFormSubmitButton"] button:hover:not(:disabled),
+            [data-testid="stDownloadButton"] button:hover:not(:disabled),
+            [data-testid="stPageNav"] a:hover {
+                transform: translateY(-2px); border-color: var(--teal) !important;
+                box-shadow: 0 0 0 3px rgba(35,122,82,.12),
+                    0 0 22px rgba(35,122,82,.28), 0 8px 20px rgba(23,76,60,.16);
+                filter: saturate(1.08);
+            }
+            [data-testid="stTextInputRootElement"]:hover,
+            [data-testid="stTextAreaRootElement"]:hover,
+            [data-testid="stSelectbox"] div:has(> [role="combobox"]):hover {
+                border-color: rgba(35,122,82,.72) !important;
+                box-shadow: 0 0 0 3px rgba(35,122,82,.10), 0 0 18px rgba(35,122,82,.16);
+                transition: box-shadow .18s ease, border-color .18s ease;
+            }
+            [data-testid="stExpander"] summary:hover,
+            [data-testid="stTabs"] button:hover,
+            [role="radio"]:hover, [role="checkbox"]:hover,
+            [role="option"]:hover {
+                filter: drop-shadow(0 0 7px rgba(35,122,82,.24));
+                transition: filter .18s ease;
+            }
+        }
+        .stButton > button:active:not(:disabled),
+        [data-testid="stFormSubmitButton"] button:active:not(:disabled),
+        [data-testid="stDownloadButton"] button:active:not(:disabled) {
+            transform: translateY(0) scale(.985);
+            box-shadow: 0 0 0 2px rgba(35,122,82,.16), 0 3px 10px rgba(23,76,60,.12);
         }
         .stButton > button[kind="primary"],
         button[kind*="primary"],
@@ -77,8 +111,8 @@ def apply_demo_style():
         form button[type="submit"],
         [data-testid="stFormSubmitButton"] button:not(:disabled),
         [data-testid="stBaseButton-primary"] {
-            background: linear-gradient(120deg, #0F2F52 0%, #1D5C96 58%, #0B716D 100%) !important;
-            background-color: #1D5C96 !important; border: 0 !important; color: #fff !important;
+            background: linear-gradient(120deg, #174C3C 0%, #326D57 58%, #237A52 100%) !important;
+            background-color: #326D57 !important; border: 0 !important; color: #fff !important;
             -webkit-text-fill-color: #fff !important;
         }
         .stButton > button[kind="primary"] *,
@@ -89,16 +123,16 @@ def apply_demo_style():
         [data-testid="stFormSubmitButton"] [data-testid="stBaseButton-primary"] * { color: #fff !important; }
         button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible,
         [role="combobox"]:focus-visible {
-            outline: 3px solid #0B716D !important; outline-offset: 3px !important;
+            outline: 3px solid #326D57 !important; outline-offset: 3px !important;
             box-shadow: 0 0 0 2px #fff !important;
         }
         [data-testid="stTextInputRootElement"], [data-testid="stTextAreaRootElement"],
         [data-testid="stSelectbox"] div:has(> [role="combobox"]) {
-            background: var(--paper) !important; border: 1px solid #B9C9D7 !important;
+            background: var(--paper) !important; border: 1px solid var(--line) !important;
             border-radius: 12px !important;
         }
         input, textarea, [role="combobox"] { color: var(--ink) !important; font-family: var(--font-ui); }
-        input::placeholder, textarea::placeholder { color: #52677C !important; opacity: 1; }
+        input::placeholder, textarea::placeholder { color: var(--muted) !important; opacity: 1; }
         [data-testid="stIconMaterial"], .material-symbols-rounded, .material-icons {
             font-family: "Material Symbols Rounded", "Material Icons" !important;
             font-feature-settings: "liga" !important;
@@ -126,6 +160,7 @@ def apply_demo_style():
             content: "◉"; font: 1.05rem/1 var(--font-ui); color: var(--navy);
         }
         [data-testid="stAlert"] { border-radius: 14px; }
+        [data-testid="stAlert"] [data-testid="stMarkdownContainer"] { color: var(--ink); }
         [data-testid="stTabs"] button { min-height: 44px; font-weight: 650; color: var(--navy); }
         .nf-userbar {
             display: flex; align-items: center; gap: .55rem; color: var(--ink);
@@ -134,12 +169,12 @@ def apply_demo_style():
         .nf-wordmark { color: var(--navy); font-size: 1.15rem; font-weight: 800; letter-spacing: -.03em; }
         .nf-role-pill {
             display: inline-flex; align-items: center; min-height: 28px; padding: 2px 11px;
-            border-radius: 999px; background: var(--mint); color: #075A56; font-size: .78rem;
-            font-weight: 750; border: 1px solid #B6E2DB;
+            border-radius: 999px; background: var(--mint); color: var(--navy); font-size: .78rem;
+            font-weight: 750; border: 1px solid var(--line);
         }
         .nf-hero {
             position: relative; overflow: hidden; border-radius: 22px; padding: clamp(24px, 4vw, 42px);
-            color: #fff; background: var(--hero-gradient); box-shadow: 0 16px 36px rgba(15,47,82,.16);
+            color: #fff; background: var(--hero-gradient); box-shadow: 0 16px 36px rgba(23,76,60,.16);
             margin: 4px 0 24px;
         }
         .nf-hero:after {
@@ -149,15 +184,44 @@ def apply_demo_style():
         }
         .nf-hero h1 { color: #fff !important; font-size: clamp(2rem, 5vw, 3.2rem); margin: 0 0 12px; }
         .nf-hero p { color: #fff !important; max-width: 850px; margin: 0; font-size: 1.04rem; }
-        .nf-eyebrow { color: #D8F4F0; text-transform: uppercase; letter-spacing: .14em;
+        .nf-eyebrow { color: #E6F2EB; text-transform: uppercase; letter-spacing: .14em;
             font-size: .75rem; font-weight: 800; margin-bottom: 12px; }
         .nf-section-kicker { color: var(--blue); text-transform: uppercase; letter-spacing: .13em;
             font-size: .72rem; font-weight: 800; margin-bottom: 6px; }
         .nf-score { font-size: 1.65rem; font-weight: 800; color: var(--blue); line-height: 1.1; }
         .nf-muted { color: var(--muted); }
-        [data-testid="stPageNav"] { background: transparent; }
-        [data-testid="stPageNav"] a { min-height: 44px; border-radius: 11px; font-weight: 650; }
-        [data-testid="stPageNav"] a[aria-current="page"] { background: var(--mint); color: var(--navy); }
+        [data-testid="stPageNav"] { background: transparent; gap: .3rem; }
+        [data-testid="stPageNav"] a {
+            min-height: 44px; padding: .45rem .85rem; border: 1px solid transparent;
+            border-radius: 12px; font-weight: 700; color: var(--navy);
+            transition: background .18s ease, color .18s ease, box-shadow .18s ease,
+                border-color .18s ease, transform .18s ease;
+        }
+        [data-testid="stPageNav"] a:hover {
+            background: linear-gradient(115deg, rgba(230,242,235,.96), rgba(255,255,255,.94));
+            border-color: rgba(35,122,82,.28); color: var(--navy);
+            box-shadow: 0 0 0 3px rgba(35,122,82,.08), 0 7px 18px rgba(23,76,60,.12);
+            transform: translateY(-1px);
+        }
+        [data-testid="stPageNav"] a[aria-current="page"] {
+            background: linear-gradient(115deg, #174C3C 0%, #237A52 100%);
+            border-color: rgba(23,76,60,.8); color: #fff !important;
+            box-shadow: 0 6px 16px rgba(23,76,60,.22);
+        }
+        [data-testid="stPageNav"] a[aria-current="page"] * { color: #fff !important; }
+        .st-key-resident-complaint-total [data-testid="stMetric"] {
+            background: linear-gradient(130deg, #FFFFFF 0%, #F1F8F3 100%);
+            border-color: rgba(35,122,82,.22);
+            box-shadow: 0 12px 28px rgba(23,76,60,.09);
+        }
+        .st-key-resident-complaint-total [data-testid="stMetricValue"] {
+            color: var(--green); font-weight: 800;
+        }
+        [data-testid="stSidebarNav"] a[aria-current="page"] {
+            background: var(--mint); color: var(--green); border-left: 3px solid var(--green);
+        }
+        [data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid var(--line); }
+        [data-testid="stExpander"] { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; }
         @media (max-width: 700px) {
             .block-container { padding: .75rem .85rem 2rem; }
             [data-testid="stHorizontalBlock"] { flex-wrap: wrap; gap: .8rem; }

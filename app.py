@@ -1,8 +1,11 @@
 """NagrikSetu sign-in shell and role-aware top navigation."""
+import base64
+from pathlib import Path
+
 import streamlit as st
 
 from core.auth import (LoginLockedError, authenticate_identifier, begin_public_phone_registration,
-                       begin_staff_registration, demo_mode, get_active_user, get_user_by_email,
+                       begin_staff_registration, get_active_user, get_user_by_email,
                        oidc_available, register_user, refresh_session, resend_public_phone_otp,
                        resend_staff_email_code, start_session, verify_public_phone_registration,
                        verify_staff_registration, staff_directory_preview)
@@ -12,7 +15,13 @@ from core.config import feature_enabled
 from core.geo_ui import render_geography_picker
 from core.geo import configure_staff_location, sync_allowlisted_assignments
 from core.password_policy import score_password
-from core.ui import apply_demo_style, render_hero, render_userbar
+from core.ui import apply_demo_style, render_userbar
+
+
+def _reset_staff_registration():
+    st.session_state.pop("staff_registration_pending", None)
+    st.session_state.pop("staff-registration-code", None)
+
 
 st.set_page_config(page_title="NagrikSetu | Civic grievance support", page_icon="🧭",
                    layout="wide", initial_sidebar_state="collapsed")
@@ -63,8 +72,8 @@ def _page(path, title, icon, *, default=False, visibility="visible"):
 
 if user and user.get("role") == "public":
     nav_pages = [
-        _page("pages/0_Home.py", "Overview", "🏠", default=True),
-        _page("pages/10_Public_Portal.py", "Submit & track", "📝"),
+        _page("pages/0_Home.py", "Home", "🏠", default=True),
+        _page("pages/10_Public_Portal.py", "Submit complaint", "📝"),
         _page("pages/8_Request_Review.py", "My complaints", "🙋"),
         _page("pages/1_Intake.py", "Complain here", "📝", visibility="hidden"),
         _page("pages/6_Inbox.py", "Inbox", "📥", visibility="hidden"),
@@ -110,7 +119,7 @@ elif user:
             _page("pages/13_Hotspots.py", "Hotspots", "📈", visibility="visible" if feature_enabled("hotspots") and verify_permission(user["role"], "can_view_hotspots") else "hidden"),
             
             # 👇 Yahan add karein (Sirf Government/Staff ke liye visible rahega)
-            _page("pages/17_geo_map.py", "Geo Map & Hotspots", "🗺️", 
+            _page("pages/17_geo_Map.py", "Geo Map & Hotspots", "🗺️",
                   visibility="visible" if verify_permission(user["role"], "can_view_hotspots") else "hidden"),
             
             _page("pages/14_Correction_Dataset.py", "Correction dataset", "🧪", visibility="visible" if feature_enabled("learning") and verify_permission(user["role"], "can_manage_corrections") else "hidden"),
@@ -147,28 +156,67 @@ else:
 
 
 if user:
+    st.session_state.pop("login_view", None)
     apply_demo_style()
     render_userbar(user)
 else:
     apply_demo_style()
-    render_hero("Civic grievance support", "NagrikSetu",
-                "Report a civic problem, follow your case, and request a human review when needed.")
-    info_col, form_col = st.columns([1.05, 1], gap="large")
-    with info_col:
-        st.subheader("A person reviews every suggestion")
-        st.write("NagrikSetu helps residents share civic problems. Staff review department suggestions; nothing is closed automatically.")
-        st.markdown("- Report in Hindi, English, or Hinglish.\n- Add an optional photo.\n- Track your complaint with its case ID.")
-        st.caption("Public users can use email or an Indian mobile number. Staff accounts are verified against the synthetic staff directory.")
-        if demo_mode():
-            st.warning("DEMO MODE · Verification codes shown here are simulated; no email or SMS is sent.", icon="🧪")
-        try:
-            if oidc_available(st.secrets):
-                st.button("Continue with Google", on_click=st.login, args=("google",), width="stretch")
-            else:
-                st.caption("Google sign-in is optional. Configure [auth] in .streamlit/secrets.toml to enable it.")
-        except Exception:
-            st.caption("Google sign-in is optional. Configure [auth] in .streamlit/secrets.toml to enable it.")
-    with form_col:
+    background_path = Path(__file__).parent / "assets" / "login-background.jpg"
+    background_data = base64.b64encode(background_path.read_bytes()).decode("ascii")
+    st.markdown(f"""
+    <style>
+      .stApp {{
+        background-image: linear-gradient(rgba(245, 250, 252, .20), rgba(245, 250, 252, .20)),
+          url("data:image/jpeg;base64,{background_data}");
+        background-position: center;
+        background-size: cover;
+        background-attachment: fixed;
+      }}
+      .stMainBlockContainer {{ max-width: 760px; padding-top: 12vh; }}
+      .st-key-login-welcome {{
+        padding: clamp(2rem, 7vw, 5rem) clamp(1.5rem, 6vw, 4rem);
+        text-align: center;
+        border: 1px solid rgba(255,255,255,.72);
+        border-radius: 28px;
+        background: rgba(255,255,255,.76);
+        box-shadow: 0 24px 70px rgba(20, 62, 75, .16);
+        backdrop-filter: blur(10px);
+      }}
+      .login-welcome-title {{
+        margin: 0 0 2rem;
+        color: #174f40;
+        font-size: clamp(2.2rem, 6vw, 4rem);
+        font-weight: 750;
+        letter-spacing: -.04em;
+      }}
+      .st-key-login-welcome button {{ min-height: 3.25rem; border-radius: 12px; }}
+      .st-key-login-welcome button[kind="primary"] {{
+        background: linear-gradient(115deg, #175344, #27845f);
+        border-color: #175344;
+      }}
+      @media (max-width: 640px) {{ .stMainBlockContainer {{ padding-top: 7vh; }} }}
+    </style>
+    """, unsafe_allow_html=True)
+    login_view = st.session_state.get("login_view", "welcome")
+    if login_view not in {"welcome", "signin", "signup"}:
+        login_view = "welcome"
+        st.session_state["login_view"] = login_view
+
+    if login_view == "welcome":
+        with st.container(key="login-welcome"):
+            st.markdown('<h1 class="login-welcome-title">Welcome to NagrikSetu</h1>',
+                        unsafe_allow_html=True)
+            sign_in_col, sign_up_col = st.columns(2, gap="medium")
+            if sign_in_col.button("Sign in", type="primary", width="stretch", key="welcome-signin"):
+                st.session_state["login_view"] = "signin"
+                st.rerun()
+            if sign_up_col.button("Sign up", width="stretch", key="welcome-signup"):
+                st.session_state["login_view"] = "signup"
+                st.rerun()
+    else:
+        if st.button("← Back", key="login-welcome-back"):
+            st.session_state["login_view"] = "welcome"
+            st.rerun()
         google_pending = st.session_state.get("google_pending_profile")
         if google_pending:
             st.subheader("Finish public account setup")
@@ -186,8 +234,21 @@ else:
                 except ValueError as exc:
                     st.error(str(exc))
         else:
-            login_tab, register_tab = st.tabs(["Sign in", "Create account"])
-            with login_tab:
+            auth_signin_col, auth_signup_col = st.columns(2, gap="medium")
+            if auth_signin_col.button(
+                "Sign in", type="primary" if login_view == "signin" else "secondary",
+                width="stretch", key="auth-switch-signin",
+            ):
+                st.session_state["login_view"] = "signin"
+                st.rerun()
+            if auth_signup_col.button(
+                "Sign up", type="primary" if login_view == "signup" else "secondary",
+                width="stretch", key="auth-switch-signup",
+            ):
+                st.session_state["login_view"] = "signup"
+                st.rerun()
+
+            if login_view == "signin":
                 with st.form("email_login"):
                     identifier = st.text_input("Email or mobile number", autocomplete="username",
                                                placeholder="name@example.com or 9876543210")
@@ -208,8 +269,13 @@ else:
                         st.rerun()
                     if not config_error:
                         st.error("Invalid credentials")
-                st.caption("Password strength guidance: use 10+ characters, 3 character types, or a 4-word passphrase. Existing accounts can still sign in with their current password.")
-            with register_tab:
+                try:
+                    if oidc_available(st.secrets):
+                        st.button("Continue with Google", on_click=st.login,
+                                  args=("google",), width="stretch", key="login-google")
+                except Exception:
+                    pass
+            else:
                 issued_code = None
                 account_kind = st.selectbox("Account type", ["public", "staff"],
                                             format_func=lambda value: "Resident / public user" if value == "public" else "Government staff",
@@ -283,20 +349,31 @@ else:
                     st.progress(staff_report["score"] / 4, text=f"Password strength · {staff_report['score']}/4")
                     for suggestion in staff_report["suggestions"]:
                         st.caption(suggestion)
-                    if st.button("Send staff verification code", type="primary", width="stretch", key="start-staff-registration"):
+                    pending_staff = st.session_state.get("staff_registration_pending")
+                    if not pending_staff and st.button("Send staff verification code", type="primary",
+                                                       width="stretch", key="start-staff-registration"):
                         try:
                             delivery = begin_staff_registration(staff_email, "", staff_password, staff_confirm)
-                            st.session_state["staff_registration_pending"] = {
-                                "email": staff_email, "message": delivery["message"]}
-                            issued_code = delivery.get("code")
+                            pending_staff = {
+                                "email": staff_email,
+                                "message": delivery["message"],
+                                "simulated_code": delivery.get("simulated_code"),
+                            }
+                            st.session_state["staff_registration_pending"] = pending_staff
                             st.success("Code request created. Verify your email address to finish registration.")
-                        except (ValueError, RuntimeError) as exc:
+                        except ValueError as exc:
+                            if "wait 30 seconds" in str(exc):
+                                st.warning("A code was requested recently for this address. Wait 30 seconds before requesting another code.")
+                            else:
+                                st.error(str(exc))
+                        except RuntimeError as exc:
                             st.error(str(exc))
-                    pending_staff = st.session_state.get("staff_registration_pending")
+                        pending_staff = st.session_state.get("staff_registration_pending")
                     if pending_staff:
                         st.info(pending_staff["message"])
-                        if issued_code:
-                            st.code(issued_code, language=None)
+                        if pending_staff.get("simulated_code"):
+                            st.caption("Demo verification code · this code remains available while signup is open.")
+                            st.code(pending_staff["simulated_code"], language=None)
                         staff_code = st.text_input("Six-digit email verification code", max_chars=6,
                                                    key="staff-registration-code")
                         verify_col, resend_col = st.columns(2)
@@ -312,17 +389,25 @@ else:
                             try:
                                 delivery = resend_staff_email_code(pending_staff["email"])
                                 st.session_state["staff_registration_pending"] = {
-                                    "email": pending_staff["email"], "message": delivery["message"]}
-                                issued_code = delivery.get("code")
-                            except (ValueError, RuntimeError) as exc:
+                                    "email": pending_staff["email"],
+                                    "message": delivery["message"],
+                                    "simulated_code": delivery.get("simulated_code"),
+                                }
+                                st.rerun()
+                            except ValueError as exc:
+                                if "wait 30 seconds" in str(exc):
+                                    st.warning("A code was just requested. Use the code shown above, or wait 30 seconds before resending.")
+                                else:
+                                    st.error(str(exc))
+                            except RuntimeError as exc:
                                 st.error(str(exc))
-    st.divider()
-    st.caption("Prototype authentication. Email and SMS delivery, multifactor authentication, and password reset are not configured.")
-
+                        st.button("Start over / change staff email", key="restart-staff-registration",
+                                  on_click=_reset_staff_registration)
 router.run()
 
 # --- Non-invasive Floating Contact Widget (Forces Gmail Web) ---
-st.markdown("""
+if user:
+    st.markdown("""
 <style>
 .floating-contact-btn {
     position: fixed;
@@ -351,4 +436,4 @@ st.markdown("""
 <a href="https://mail.google.com/mail/?view=cm&fs=1&to=aarohigupta2124@gmail.com&su=NyayaFlow%20Support%20Inquiry" target="_blank" class="floating-contact-btn">
     💬 Contact Us (Gmail)
 </a>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)

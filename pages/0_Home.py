@@ -12,11 +12,12 @@ from core.staff_dashboard_ui import render_staff_dashboard
 
 def _render_area_selection(user, prefix):
     selected = render_geography_picker(prefix)
-    if st.button("Show complaints from this location", key=f"{prefix}-submit"):
+    if st.button("Show complaints from this location", key=f"{prefix}-submit", type="primary"):
         try:
             outcome = configure_staff_location(user, *selected)
-            st.success(f"{outcome['area_name']} selected. Matching complaints are now available "
-                       "within your staff role and department.")
+            st.session_state["staff-active-area-label"] = (
+                f"{outcome['area_name']} · {outcome['city_name']}, {outcome['state_name']}"
+            )
             st.rerun()
         except (ValueError, PermissionError) as exc:
             st.error(str(exc))
@@ -27,73 +28,22 @@ user = require_login()
 apply_demo_style()
 
 if user["role"] == "public":
-    render_hero(
-        "Civic grievance support",
-        "NagrikSetu",
-        "Report a civic problem in Hindi, English or Hinglish, add a photo if you have one, and follow your complaint with a case ID. A staff member reviews every suggested department before anything is final.",
-    )
+    st.title("Home")
     mine = list_own_complaints(user["id"])
-    report_col, track_col = st.columns(2, gap="large")
-    with report_col:
-        with st.container(border=True):
-            st.markdown('<div class="nf-section-kicker">Start here</div>', unsafe_allow_html=True)
-            st.subheader("Report a problem")
-            st.write("Tell us what happened and where. Add a photo if it helps explain the issue.")
-            st.page_link("pages/10_Public_Portal.py", label="Report a problem", icon="📝", width="stretch")
-    with track_col:
-        with st.container(border=True):
-            st.markdown('<div class="nf-section-kicker">Your cases</div>', unsafe_allow_html=True)
-            st.subheader("Track my complaints")
-            st.metric("Your complaints", len(mine))
-            st.page_link("pages/8_Request_Review.py", label="Track my complaints", icon="📬", width="stretch")
-
-    st.write("")
-    how_col, expect_col = st.columns([1.35, 1], gap="large")
-    with how_col:
-        with st.container(border=True):
-            st.markdown('<div class="nf-section-kicker">A simple path</div>', unsafe_allow_html=True)
-            st.subheader("How it works")
-            steps = [
-                ("01", "Describe", "Tell us what happened and where, in Hindi, English or Hinglish. Add a photo if you can."),
-                ("02", "We suggest", "The system suggests which department may handle it. If it is unsure, it says so and may ask you one question."),
-                ("03", "A person reviews", "Staff check the suggestion and make the final decision. Nothing is closed automatically."),
-                ("04", "Track and ask again", "Follow your case ID under My complaints. If something looks wrong, you can request a review."),
-            ]
-            for number, title, detail in steps:
-                number_col, detail_col = st.columns([.16, 1], vertical_alignment="top")
-                number_col.markdown(f"<div class='nf-score'>{number}</div>", unsafe_allow_html=True)
-                detail_col.markdown(f"**{title}**  {detail}")
-                st.write("")
-    with expect_col:
-        with st.container(border=True):
-            st.markdown('<div class="nf-section-kicker">Clear expectations</div>', unsafe_allow_html=True)
-            st.subheader("What to expect")
-            st.markdown(
-                """
-                - Suggestions are not final assignments.
-                - If the system is unsure, your complaint waits for a person to decide.
-                - You can ask for a review of any of your complaints.
-                - Photos are stored with your complaint and are not analysed automatically.
-                """
-            )
-            st.caption("NagrikSetu is a prototype using synthetic demo data. Department rules are assumptions, not an official charter.")
+    with st.container(border=True, key="resident-complaint-total"):
+        st.metric("Total complaints submitted", len(mine))
 else:
     if user["role"] in STAFF_ROLES:
         location_state = staff_location_snapshot(user)
-        st.subheader("Your selected service areas")
-        if location_state["assigned"]:
-            if any(row["actor_email"] == "system:demo-admin" for row in location_state["assigned"]):
-                st.info("DEMO ACCOUNT — pre-approved synthetic assignment. Access covers all areas in Gwalior.")
-            st.dataframe([{"State": row["state_name"], "City": row["city_name"], "Area": row["area_name"],
-                           "Access source": "Self-selected" if row["actor_email"] == user["email"] else row["actor_email"],
-                           "Record": row["reason"]}
-                          for row in location_state["assigned"]], hide_index=True, width="stretch")
-        else:
-            st.info("Select a service area below. Complaints from that location become available immediately, "
-                    "subject to your staff role and department.")
-        st.subheader("Choose another service area" if location_state["assigned"] else "Choose a service area")
-        _render_area_selection(user, "staff-area-select")
-        render_staff_dashboard(user)
+        st.subheader("Choose your service area")
+        st.caption("Your complaint list and dashboard totals will follow the service area selected here.")
+        if any(row["actor_email"] == "system:demo-admin" for row in location_state["assigned"]):
+            st.info("DEMO ACCOUNT — pre-approved synthetic assignment. Access covers all areas in Gwalior. Select a service area below to focus the dashboard.")
+        elif not location_state["assigned"]:
+            st.info("Select a service area below. Complaints from that location become available immediately, subject to your staff role and department.")
+        with st.container(border=True):
+            _render_area_selection(user, "staff-area-select")
+        render_staff_dashboard(user, service_areas=location_state["assigned"])
         st.caption("NagrikSetu · Synthetic prototype · SLA targets and ownership data are demo assumptions.")
         st.stop()
     else:
@@ -166,5 +116,6 @@ else:
     for column, (path, label, icon) in zip(quick_cols, links):
         column.page_link(path, label=label, icon=icon, width="stretch")
 
-st.divider()
-st.caption("NagrikSetu · Synthetic prototype · Prototype authentication, not production-grade.")
+if user["role"] != "public":
+    st.divider()
+    st.caption("NagrikSetu · Synthetic prototype · Prototype authentication, not production-grade.")

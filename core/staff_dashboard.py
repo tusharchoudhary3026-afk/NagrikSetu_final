@@ -173,7 +173,7 @@ def list_staff_cases(user, filters=None):
                                    "area_name", "state_name", "city_name", "current_department"))) or ""
     if query:
         rows = [row for row in rows if query in row["_search"]]
-    for key in ("status", "area_name", "issue", "language"):
+    for key in ("status", "area_name", "issue", "language", "state_code", "city_code", "area_code"):
         value = filters.get(key)
         if value:
             rows = [row for row in rows if str(row.get(key) or "") == str(value)]

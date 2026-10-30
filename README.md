@@ -8,11 +8,17 @@ NagrikSetu is a human-reviewed civic grievance routing prototype. Its demo recor
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+# Optional voice transcription: create the ignored local environment file once.
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# Replace SARVAM_API_KEY in .env with a valid key before starting the app.
 # Required for encrypted photo uploads; keep this stable and private.
 $env:NYAYAFLOW_ATTACHMENT_KEY = "<stable-64-character-key-from-your-secrets-manager>"
 python -m scripts.init_db
 python -m streamlit run app.py
 ```
+
+Speech transcription reads `SARVAM_API_KEY` from `.env`, `.streamlit/secrets.toml`,
+or the process environment. `.env` and `secrets.toml` are ignored by Git; never commit a real key.
 
 ## Authentication and roles
 
@@ -24,7 +30,7 @@ After staff sign-in, the Overview route opens the staff complaint operations das
 
 For local use, install the requirements and start `python -m streamlit run app.py`; schema migrations run on app startup. For the full authentication behavior and migration notes, see [docs/AUTH_NOTES.md](docs/AUTH_NOTES.md). Passwords are stored as bcrypt hashes (or scrypt if bcrypt is unavailable). Verification codes are stored as keyed hashes. Login attempts and authentication audit events persist in SQLite. These are prototype controls, not a production security certification.
 
-Signed-in staff can select one or more service areas from Overview; matching complaints are available immediately and the selection persists across refreshes. The existing role checks remain active, and operator inboxes remain restricted to the operator's department. Geography values are synthetic prototype choices, not authoritative municipal boundaries. Optional city-wide Gwalior demo assignments remain limited to the exact synthetic operator01, reviewer01, and auditor01 accounts.
+Signed-in staff can select one or more service areas from Overview and choose an active service area for the dashboard. Complaint counts, hotspot summaries, and inbox cases follow that active area; role and operator department checks remain enforced. Geography values are synthetic prototype choices, not authoritative municipal boundaries. Optional city-wide Gwalior demo assignments remain limited to the exact synthetic operator01, reviewer01, and auditor01 accounts.
 
 The application uses one SQLite database path: `db/nyayaflow.db` by default, overridden only by `NYAYAFLOW_DB_PATH`. Relative overrides resolve from the project root. This Streamlit app has no separate HTTP API or API base URL. [.env.example](.env.example) documents optional environment variables; Streamlit does not load it automatically, so export values in your VS Code terminal.
 
@@ -52,16 +58,17 @@ The frozen test split is grouped by complaint family. Evaluation fits TF-IDF on 
 - Duplicate candidates show TF-IDF text similarity, shared issue labels, a normalized location relation, time gap, and guard evidence. A reviewer must confirm or reject with a reason; confirmation and unlink/rejection events are appended for both complaints, and every original complaint remains available. The score is a ranking signal, not a probability or verdict. Cross-language Hindi-English matching may miss reports.
 - JPEG, PNG, and WEBP attachments are size/type-checked, metadata-stripped, encrypted at rest with AES-256-GCM, and available to government staff only. Set `NYAYAFLOW_ATTACHMENT_KEY` to 64 hex characters (32 bytes) before enabling photo uploads. Keep it in a secrets manager and retain a protected backup; losing it makes stored photos unreadable. No image analysis occurs.
 - Before enabling uploads on a database with older photo attachments, back up the database and `data/attachments`, set the same stable key, then run `python scripts/migrate_attachment_encryption.py`. Legacy photos remain blocked from the UI until migrated.
-- Speech-to-text is an optional browser trial on intake. Users must disclose and consent to browser speech recognition, review and edit the returned text, and explicitly confirm it before processing. Audio is not stored by NagrikSetu; browser providers may process it. Hindi-English mixed speech quality is unvalidated.
+- Speech-to-text uses Sarvam Saaras v4 when `SARVAM_API_KEY` is configured. Users can select a spoken language, then review and edit transcripts before processing. Audio is sent to Sarvam for transcription and is not stored by NagrikSetu; microphone and language quality still require device-level validation.
 - Safety triage uses configurable phrase rules across seven municipal hazard groups. It applies context-aware negation, repair, history, uncertainty, and public-exposure checks; displays evidence, rule IDs, a prototype 0–100 score, and a critical override; and requires human review. Thresholds are illustrative and not safety-validated. Reviewer actions require a reason and append the original system assessment plus the reviewer decision to the existing case ledger.
 - The safety lexicon contains 349 unique phrases in English, Hindi, and Hinglish. Its 12-case evaluation reports precision, recall, false positives, false negatives, and language-level counts as a synthetic sanity check only. Independent real complaint evaluation is pending.
 - Reassignment and hotspot reports show time windows, observed counts, baselines, denominators, and synthetic-data labels. These counts do not establish fault.
+- The staff Geo Map aggregates complaints by authorized area. It uses clearly labelled illustrative area centers because the complaint schema does not store GPS coordinates; unknown areas remain visible in the counts table and are not plotted.
 - Reviewer corrections are saved with provenance. Only explicitly verified corrections are exposed to a future offline training experiment; nothing retrains or deploys automatically.
 - A reviewer can run a guarded offline experiment once at least 10 verified corrections span at least two departments. It reuses the frozen test set, excludes near-matches to held-out text, and saves or deploys no model.
 
 ## Scope limits
 
-Speech-to-text remains a trial feature; actual microphone and language-quality validation is still required. Existing photo files created before the encryption migration are marked legacy plaintext and cannot be viewed through the app; re-upload them using the secure intake flow. The SQLite complaint/decision database has no application-level encryption, and HTTPS, backups, retention, and production-grade identity infrastructure must be verified and configured for the deployment. The duplicate benchmark has only 40 synthetic AI-authored/AI-reviewed pairs (20 development, 20 frozen test), and is not independently labelled ground truth. Thresholds are development-only; similarity is not proof. Do not put real or sensitive case data into this prototype.
+ Speech-to-text uses Sarvam Saaras v4 when a key is configured; microphone handling and language quality still need validation on the target device. Users can review and edit transcripts before processing. Audio is sent to Sarvam for transcription and is not stored by NagrikSetu. Existing photo files created before the encryption migration are marked legacy plaintext and cannot be viewed through the app; re-upload them using the secure intake flow. The SQLite complaint/decision database has no application-level encryption, and HTTPS, backups, retention, and production-grade identity infrastructure must be verified and configured for the deployment. The duplicate benchmark has only 40 synthetic AI-authored/AI-reviewed pairs (20 development, 20 frozen test), and is not independently labelled ground truth. Thresholds are development-only; similarity is not proof. Do not put real or sensitive case data into this prototype.
 
 See [data/DATASET_CARD.md](data/DATASET_CARD.md) for dataset provenance and limitations.
 See [docs/AUTH_NOTES.md](docs/AUTH_NOTES.md) for the authentication implementation, simulated pieces, and roadmap.

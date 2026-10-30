@@ -87,13 +87,23 @@ def score_password(password: str, *, email: str | None = None, name: str | None 
         failures.append("contains_personal_information")
         suggestions.append("Avoid your email name, name, or phone number")
 
-    # Score reflects satisfied strength dimensions. Rejections cap it below 4.
-    score = min(4, int(len(value) >= 10) + int(classes >= 3 or passphrase)
-                + int(not _has_trivial_pattern(value)) + int(folded not in _common_passwords()))
+    # Only count the pattern and common-password checks after the minimum length
+    # is met. Otherwise an empty/very short value incorrectly starts at 2/4.
+    minimum_length_met = 10 <= len(value) <= 128
+    score = (
+        int(minimum_length_met)
+        + int(classes >= 3 or passphrase)
+        + int(minimum_length_met and not _has_trivial_pattern(value))
+        + int(minimum_length_met and folded not in _common_passwords())
+    )
     accepted = not failures
     if accepted:
         suggestions = ["This password meets the current strength checks"]
         score = 4
+    else:
+        # Failed rules (for example a common password or personal information)
+        # must never be presented as a full-strength password.
+        score = min(score, 3)
     return {"score": score, "failed_rules": failures, "suggestions": list(dict.fromkeys(suggestions)),
             "accepted": accepted}
 

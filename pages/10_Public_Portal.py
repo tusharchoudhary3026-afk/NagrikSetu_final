@@ -1,4 +1,4 @@
-import json
+import hashlib
 import logging
 import uuid
 
@@ -10,7 +10,6 @@ from core import intake, router_baseline, splitter
 from core.config import SIM_LABEL, feature_enabled
 from core.db import init_db, insert_public_submission
 from core.intake import normalize_location
-from core.portal import list_own_complaints, list_own_split_children
 from core.privacy import mask_text
 from core.safety import assess_safety
 from core.explanation import generate_grounded_explanation
@@ -19,7 +18,7 @@ from core.ui import apply_demo_style, render_hero
 from core.geo import known_area_for_location, partial_geography_names
 from core.geo_ui import render_geography_picker
 from core.speech import validate_transcript_submission
-from core.sarvam_speech import transcribe_audio
+from core.sarvam_speech import sarvam_configured, transcribe_audio
 from core.suggestions import selected_department
 
 
@@ -37,8 +36,7 @@ apply_demo_style()
 render_hero("Resident portal", "Submit a civic concern", "Describe what happened and where. A person makes every final routing decision.")
 st.warning(SIM_LABEL)
 
-tab_submit, tab_track = st.tabs(["Submit a complaint", "My complaints"])
-with tab_submit:
+with st.container(border=True, key="public-complaint-form"):
     st.caption("Share only details needed to understand the issue. Do not include passwords, financial information, or highly sensitive personal data.")
     state_code, city_code, area_code = render_geography_picker("resident-complaint", allow_unknown=True)
     st.caption("Location options are prototype coverage and may not include every ward. Choose ‘Not sure’ if unknown.")
@@ -47,22 +45,56 @@ with tab_submit:
     if voice_enabled:
         st.markdown("### 🎙️ Voice Intake (Powered by Sarvam AI)")
         st.caption("Record your complaint voice note in Hindi, English, or Hinglish.")
+        speech_language = st.selectbox(
+            "Spoken language", ["Auto-detect", "Hindi", "English", "Hinglish"],
+            key="public-speech-language",
+        )
+        language_code = {"Hindi": "hi-IN", "English": "en-IN"}.get(speech_language, "unknown")
+        voice_ready = sarvam_configured()
+        if not voice_ready:
+            st.warning("Voice transcription is not configured. Add a valid SARVAM_API_KEY to .env or .streamlit/secrets.toml, then refresh the page.")
         
-        audio_value = st.audio_input("Record your complaint voice note", key="public_sarvam_audio_recorder")
+        audio_value = st.audio_input("Record your complaint voice note", sample_rate=16000,
+                                     key="public_sarvam_audio_recorder", disabled=not voice_ready)
         
-        if audio_value is not None:
+        if audio_value is not None and voice_ready:
             audio_bytes = audio_value.getvalue()
-            if audio_bytes != st.session_state.get("public_last_audio_bytes"):
+            audio_digest = hashlib.sha256(language_code.encode("ascii") + b"\0" + audio_bytes).hexdigest()
+            digest_key = "public_last_audio_digest"
+            error_key = "public_audio_transcription_error"
+            if audio_digest != st.session_state.get(digest_key):
+                st.session_state[digest_key] = audio_digest
+                st.session_state.pop(error_key, None)
                 with st.spinner("Transcribing audio via Sarvam AI..."):
                     try:
-                        transcript = transcribe_audio(audio_bytes, audio_value.name)
+                        transcript = transcribe_audio(
+                            audio_bytes, audio_value.name, language_code=language_code)
                         if transcript:
                             st.session_state["public_complaint_text"] = transcript
-                            st.session_state["public_last_audio_bytes"] = audio_bytes
+                            st.session_state.pop(error_key, None)
                             st.success("Audio transcribed successfully! You can review or edit the text below.")
                             st.rerun()
-                    except Exception as exc:
+                    except ValueError as exc:
+                        st.session_state[error_key] = str(exc)
                         st.error(str(exc))
+                        if st.button("Retry transcription", key="retry-public-transcription"):
+                            st.session_state.pop(digest_key, None)
+                            st.rerun()
+                    except Exception:
+                        st.session_state[error_key] = "Transcription failed unexpectedly. Please retry the recording."
+                        logging.getLogger(__name__).exception("Public voice transcription failed")
+                        st.error(st.session_state[error_key])
+                        if st.button("Retry transcription", key="retry-public-transcription"):
+                            st.session_state.pop(digest_key, None)
+                            st.rerun()
+            elif st.session_state.get(error_key):
+                st.error(st.session_state[error_key])
+                if st.button("Retry transcription", key="retry-public-transcription"):
+                    st.session_state.pop(digest_key, None)
+                    st.rerun()
+        else:
+            st.session_state.pop("public_last_audio_digest", None)
+            st.session_state.pop("public_audio_transcription_error", None)
     with st.form("public_complaint"):
         text = st.text_area("What is the problem?", height=140,
                             max_chars=intake.MAX_COMPLAINT_CHARS,
@@ -305,52 +337,3 @@ with tab_submit:
             st.caption(f"Service area: {last['area']}")
         if last["question"]:
             st.info(f"A useful detail to add for staff: {last['question']}")
-
-with tab_track:
-    st.subheader("Your submitted complaints")
-    st.caption("Only complaints submitted by this account appear here.")
-    rows = list_own_complaints(user["id"])
-    if not rows:
-        st.info("You have not submitted any complaints yet.")
-    for row in rows:
-        with st.container(border=True):
-            st.markdown(f"### {row['case_id']}")
-            st.write(mask_text(row["original_text"]))
-            status = row.get("last_decision") or "Under review"
-            if row.get("open_requests"):
-                status = "Review requested"
-            st.caption(f"Status: {status}")
-            if row.get("split_status"):
-                st.caption(f"Split review: {row['split_status'].replace('_', ' ')} · staff confirmation required")
-                if row.get("split_status") == "proposed" and row.get("split_proposal_json"):
-                    try:
-                        proposal_parts = json.loads(row["split_proposal_json"]).get("parts", [])
-                    except (TypeError, json.JSONDecodeError):
-                        proposal_parts = []
-                    for part in proposal_parts:
-                        dept = selected_department(part.get("suggestion"))
-                        st.write(f"Possible issue: {part.get('text', '')} · {part.get('issue', 'unknown')} · "
-                                 f"{dept or 'Human review needed'}")
-                for child in list_own_split_children(user["id"], row["id"]):
-                    state = "active" if child["is_active"] else "merged back"
-                    st.write(f"Sub-issue ({state}): {child['original_text']} · {child.get('issue') or 'unknown'}")
-            if row.get("location") and row["location"] != "unknown":
-                st.caption(f"Location: {row['location']}")
-            if row.get("state_name") or row.get("city_name") or row.get("area_name"):
-                st.caption("Selected area: " + " · ".join(x for x in
-                          (row.get("state_name"), row.get("city_name"), row.get("area_name")) if x))
-            if row.get("abstained"):
-                st.info("Awaiting human review; the system did not make a supported suggestion.")
-            elif row.get("top3"):
-                try:
-                    top3 = json.loads(row["top3"])
-                except (TypeError, json.JSONDecodeError):
-                    top3 = []
-                if top3:
-                    st.caption(f"Suggestion: {top3[0].get('dept', 'Not available')} · final decisions are made by staff")
-            if row.get("final_dept"):
-                st.write(f"Latest staff decision: **{row['final_dept']}**")
-            if row.get("open_requests"):
-                st.caption("Your review request is awaiting a staff response.")
-            else:
-                st.caption("You can request a human review from the My complaints page.")

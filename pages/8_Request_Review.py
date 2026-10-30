@@ -18,7 +18,6 @@ render_hero("Resident portal", "My complaints", "Track your cases and ask an aut
 rows = list_own_complaints(user["id"])
 if not rows:
     st.info("You have not submitted any complaints yet.")
-    st.page_link("pages/10_Public_Portal.py", label="Submit a complaint", icon="📝")
 else:
     for row in rows:
         with st.container(border=True):
