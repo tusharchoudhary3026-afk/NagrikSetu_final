@@ -105,17 +105,17 @@ elif user:
         "Insights": [
             _page("pages/4_Evaluation.py", "Evaluation", "📊", visibility="visible" if can_audit else "hidden"),
             _page("pages/5_Relabel.py", "Relabel", "🏷️", visibility="visible" if can_review else "hidden"),
-            _page("pages/9_Security.py", "Security status", "🔐",
-                  visibility="visible" if verify_permission(user["role"], "can_view_security") else "hidden"),
+            _page("pages/9_Security.py", "Security status", "🔐", visibility="visible" if verify_permission(user["role"], "can_view_security") else "hidden"),
             _page("pages/12_Area_Access_Admin.py", "Area access requests", "📍", visibility="hidden"),
-            _page("pages/13_Hotspots.py", "Hotspots", "📈",
-                  visibility="visible" if feature_enabled("hotspots") and verify_permission(user["role"], "can_view_hotspots") else "hidden"),
-            _page("pages/14_Correction_Dataset.py", "Correction dataset", "🧪",
-                  visibility="visible" if feature_enabled("learning") and verify_permission(user["role"], "can_manage_corrections") else "hidden"),
-            _page("pages/15_Model_Evaluation.py", "Model evaluation", "📊",
-                  visibility="visible" if feature_enabled("learning") and verify_permission(user["role"], "can_view_model_eval") else "hidden"),
-            _page("pages/16_Users_Roles.py", "Users & roles", "👥",
-                  visibility="visible" if verify_permission(user["role"], "can_audit") else "hidden"),
+            _page("pages/13_Hotspots.py", "Hotspots", "📈", visibility="visible" if feature_enabled("hotspots") and verify_permission(user["role"], "can_view_hotspots") else "hidden"),
+            
+            # 👇 Yahan add karein (Sirf Government/Staff ke liye visible rahega)
+            _page("pages/17_geo_map.py", "Geo Map & Hotspots", "🗺️", 
+                  visibility="visible" if verify_permission(user["role"], "can_view_hotspots") else "hidden"),
+            
+            _page("pages/14_Correction_Dataset.py", "Correction dataset", "🧪", visibility="visible" if feature_enabled("learning") and verify_permission(user["role"], "can_manage_corrections") else "hidden"),
+            _page("pages/15_Model_Evaluation.py", "Model evaluation", "📊", visibility="visible" if feature_enabled("learning") and verify_permission(user["role"], "can_view_model_eval") else "hidden"),
+            _page("pages/16_Users_Roles.py", "Users & roles", "👥", visibility="visible" if verify_permission(user["role"], "can_audit") else "hidden"),
         ],
     }, position="top")
 else:
