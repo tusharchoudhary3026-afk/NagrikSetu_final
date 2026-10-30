@@ -320,3 +320,35 @@ else:
     st.caption("Prototype authentication. Email and SMS delivery, multifactor authentication, and password reset are not configured.")
 
 router.run()
+
+# --- Non-invasive Floating Contact Widget (Forces Gmail Web) ---
+st.markdown("""
+<style>
+.floating-contact-btn {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white !important;
+    padding: 10px 18px;
+    border-radius: 50px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    z-index: 999999;
+    font-family: sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: transform 0.2s ease;
+}
+.floating-contact-btn:hover {
+    transform: scale(1.05);
+    color: white !important;
+}
+</style>
+<a href="https://mail.google.com/mail/?view=cm&fs=1&to=aarohigupta2124@gmail.com&su=NyayaFlow%20Support%20Inquiry" target="_blank" class="floating-contact-btn">
+    💬 Contact Us (Gmail)
+</a>
+""", unsafe_allow_html=True)
